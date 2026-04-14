@@ -1,0 +1,49 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <title>Dashboard - Flitta</title>
+    <link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+
+    <div class="container">
+
+        <header>
+            <h1>Flitta</h1>
+            <button onclick="logout()">Sair</button>
+        </header>
+
+        <section class="card">
+            <h2>📅 Agenda do dia</h2>
+            <ul id="appointments"></ul>
+        </section>
+
+        <section class="card">
+            <h2>⚙️ Serviços</h2>
+
+            <ul id="services"></ul>
+
+            <div class="form-incline">
+                <input id="newService" placeholder="Novo serviço">
+                <button onclick="createService()">Adicionar</button>
+            </div>
+        </section>
+
+        <section class="card">
+            <h2>⏰ Horários de Funcionamentos</h2>
+
+            <div class="form-incline">
+                <input id="start" placeholder="09:00">
+                <input id="end" placeholder="18:00">
+                <input id="interval"placeholder="30">
+                <button onclick="setHours()">Salvar</button>
+            </div>
+        </section>
+
+    </div>
+
+    <script src="js/api.js"></script>
+    <script src="js/main.js"></script>
+    
+</body>
+</html>
