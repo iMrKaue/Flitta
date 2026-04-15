@@ -40,6 +40,8 @@ func (f *Flow) Handle(session model.Session, text string, intent Intent) (model.
 	case model.StateConfirm:
 		return f.handleConfirm(session, text)
 
+	case model.StateChooseAppointment:
+		return f.handleChooseAppointment(session, text)
 	default:
 		session.State = model.StateIdle // ✅ corrigido
 		return session, "Não entendi 😅\nVamos começar novamente."
@@ -59,7 +61,8 @@ func (f *Flow) handleStart(session model.Session, intent Intent) (model.Session,
 		return session, "👋 Olá! Vamos agendar seu horário 😊\n\nQual seu nome?"
 
 	case IntentList:
-		return session, ""
+		session.State = model.StateChooseAppointment
+		return session, f.listAppointments(session)
 
 	default:
 		session.State = model.StateName // ✅ corrigido
@@ -217,4 +220,47 @@ func (f *Flow) handleConfirm(session model.Session, text string) (model.Session,
 
 	session.State = model.StateIdle // ✅ corrigido
 	return session, "Agendamento cancelado. Podemos começar novamente 😊"
+}
+
+func (f *Flow) listAppointments(session model.Session) string {
+
+	list, err := f.appointments.GetAppointmentsByCustomerPhone(
+		session.ClientID,
+		session.Phone,
+	)
+
+	if err != nil || len(list) == 0 {
+		return "Você não tem agendamentos ainda 😊"
+	}
+
+	response := "📅 Seus agendamentos:\n\n"
+
+	for i, a := range list {
+		response += fmt.Sprintf("%d - 💇 %s\n📅 %s às %s\n\n",
+			i+1, a.Service, a.Date, a.Time)
+	}
+
+	response += "Digite o número do agendamento."
+
+	return response
+}
+
+func (f *Flow) handleChooseAppointment(session model.Session, text string) (model.Session, string) {
+
+	list, _ := f.appointments.GetAppointmentsByCustomerPhone(
+		session.ClientID,
+		session.Phone,
+	)
+
+	index, err := strconv.Atoi(text)
+	if err != nil || index < 1 || index > len(list) {
+		return session, "Digite um número válido 😊"
+	}
+
+	selected := list[index-1]
+
+	session.SelectedAppointmentID = selected.ID
+	session.State = model.StateChooseAction
+
+	return session, "O que deseja fazer?\n\n1 - Remarcar\n2 - Cancelar"
 }
