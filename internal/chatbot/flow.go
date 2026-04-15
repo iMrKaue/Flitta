@@ -42,6 +42,15 @@ func (f *Flow) Handle(session model.Session, text string, intent Intent) (model.
 
 	case model.StateChooseAppointment:
 		return f.handleChooseAppointment(session, text)
+
+	case model.StateChooseAction:
+		return f.handleChooseAction(session, text)
+
+	case model.StateRescheduleTime:
+		return f.handleRescheduleTime(session, text)
+
+	case model.StateCancelConfirm:
+		return f.handleCancel(session, text)
 	default:
 		session.State = model.StateIdle // ✅ corrigido
 		return session, "Não entendi 😅\nVamos começar novamente."
@@ -263,4 +272,63 @@ func (f *Flow) handleChooseAppointment(session model.Session, text string) (mode
 	session.State = model.StateChooseAction
 
 	return session, "O que deseja fazer?\n\n1 - Remarcar\n2 - Cancelar"
+}
+
+func (f *Flow) handleChooseAction(session model.Session, text string) (model.Session, string) {
+
+	if text == "1" {
+		session.State = model.StateRescheduleTime
+		return session, "Digite o novo horário desejado 😊"
+	}
+
+	if text == "2" {
+		session.State = model.StateCancelConfirm
+		return session, "Deseja cancelar? (sim/não)"
+	}
+
+	return session, "Escolha 1 para remarcar ou 2 para cancelar"
+}
+
+func (f *Flow) handleRescheduleTime(session model.Session, text string) (model.Session, string) {
+
+	if session.SelectedAppointmentID == 0 {
+		session.State = model.StateIdle
+		return session, "Erro ao identificar agendamento. Tente novamente 🙏"
+	}
+
+	err := f.appointments.RescheduleAppointmentByID(
+		session.SelectedAppointmentID,
+		session.Phone,
+		text,
+	)
+
+	if err != nil {
+		return session, "Não foi possível remarcar 😢\nTente outro horário."
+	}
+
+	session.State = model.StateIdle
+
+	return session, "🔄 Agendamento atualizado com sucesso!"
+}
+
+func (f *Flow) handleCancel(session model.Session, text string) (model.Session, string) {
+
+	if text == "sim" {
+
+		err := f.appointments.CancelAppointment(
+			session.SelectedAppointmentID,
+			session.ClientID,
+			session.Phone,
+		)
+
+		if err != nil {
+			return session, "Erro ao cancelar 😢"
+		}
+
+		session.State = model.StateIdle
+		return session, "❌ Agendamento cancelado com sucesso!"
+	}
+
+	session.State = model.StateIdle
+	return session, "Cancelamento abortado 👍"
 }
