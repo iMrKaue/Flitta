@@ -47,8 +47,12 @@ func ProcessMessage(userID, text string) string {
 
 	if session.State == model.StateIdle {
 
-		if aiData.Service != "" && session.Service == "" {
-			session.Service = aiData.Service
+		if session.Service == "" {
+			if aiData.Service != "" {
+				session.Service = aiData.Service
+			} else if detectedService := extractServiceFromText(text, clientID); detectedService != "" {
+				session.Service = detectedService
+			}
 		}
 
 		if session.Date == "" {
@@ -59,11 +63,19 @@ func ProcessMessage(userID, text string) string {
 				session.Date = parsedDate
 				session.State = model.StateDate
 			}
-			
+
 		}
 
-		if aiData.Time != "" && session.SuggestedTime == "" && session.Time == "" {
-			session.SuggestedTime = aiData.Time
+		if session.Time == "" && session.SuggestedTime == "" {
+			if aiData.Time != "" {
+				session.Time = aiData.Time
+			} else if parsedHour := utils.NormalizeHour(text); parsedHour != "" {
+				session.Time = parsedHour
+			}
+		}
+
+		if session.Time != "" && session.Date != "" {
+			session.State = model.StateTime
 		}
 	}
 
@@ -86,4 +98,18 @@ func ProcessMessage(userID, text string) string {
 
 	println("11. fim do ProcessMessage")
 	return response
+}
+
+func extractServiceFromText(text string, clientID int) string {
+	text = strings.ToLower(strings.TrimSpace(text))
+	services := repository.GetServices(clientID)
+
+	for _, s := range services {
+		serviceName := strings.ToLower(strings.TrimSpace(s.Name))
+		if serviceName != "" && strings.Contains(text, serviceName) {
+			return s.Name
+		}
+	}
+
+	return ""
 }

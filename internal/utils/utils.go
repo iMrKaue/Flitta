@@ -62,7 +62,7 @@ func Capitalize(name string) string {
 func NormalizeHour(text string) string {
 	text = NormalizeText(text)
 
-	reHourFull := regexp.MustCompile(`\b(\d{1,2}):(\d{2})\b`)
+	reHourFull := regexp.MustCompile(`(\d{1,2}):(\d{2})`)
 	if match := reHourFull.FindStringSubmatch(text); len(match) == 3 {
 		h := match[1]
 		m := match[2]
@@ -72,8 +72,17 @@ func NormalizeHour(text string) string {
 		return h + ":" + m
 	}
 
-	reHourShort := regexp.MustCompile(`\b(\d{1,2})h\b`)
+	reHourShort := regexp.MustCompile(`(\d{1,2})h`)
 	if match := reHourShort.FindStringSubmatch(text); len(match) == 2 {
+		h := match[1]
+		if len(h) == 1 {
+			h = "0" + h
+		}
+		return h + ":00"
+	}
+
+	reHourWithAs := regexp.MustCompile(`(?:^|\s)(?:as|às)\s*(\d{1,2})(?:\s|$)`)
+	if match := reHourWithAs.FindStringSubmatch(text); len(match) == 2 {
 		h := match[1]
 		if len(h) == 1 {
 			h = "0" + h
@@ -90,7 +99,6 @@ func NormalizeHour(text string) string {
 	}
 
 	return ""
-
 }
 
 func ExtractPeriod(text string) string {
@@ -99,7 +107,7 @@ func ExtractPeriod(text string) string {
 	switch {
 	case ContainsAny(text, "fim da tarde", "final da tarde"):
 		return "fim_tarde"
-	case ContainsAny(text, "manha", "manhã", "de manhã", "pela manhã"):
+	case ContainsAny(text, "de manhã", "pela manhã", "de manha", "pela manha"):
 		return "manha"
 	case ContainsAny(text, "tarde", "a tarde", "à tarde", "de tarde"):
 		return "tarde"

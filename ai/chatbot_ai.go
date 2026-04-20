@@ -43,13 +43,13 @@ func ParseMessage(message string) AIData {
 	}
 
 	// TIME (inteligência leve)
-	if contains(msg, "manha") {
+	if contains(msg, "de manha", "pela manha", "manha") && !contains(msg, "amanha") {
 		data.Time = "10:00"
 	}
-	if contains(msg, "tarde") {
+	if contains(msg, "de tarde", "a tarde", "tarde") {
 		data.Time = "14:00"
 	}
-	if contains(msg, "noite") {
+	if contains(msg, "de noite", "a noite", "noite") {
 		data.Time = "18:00"
 	}
 

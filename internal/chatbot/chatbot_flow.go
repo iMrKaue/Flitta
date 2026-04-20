@@ -21,12 +21,9 @@ func NewFlow() *Flow {
 
 func (f *Flow) Handle(session *model.Session, text string) (*model.Session, string) {
 
-	println("CHATBOT HANDLE entrou. state=", session.State, "text=", text)
-
 	switch session.State {
 
 	case model.StateIdle:
-		println("CHATBOT HANDLE -> StateIdle")
 		return f.handleStart(session, text)
 
 	case model.StateName:
@@ -64,8 +61,6 @@ func (f *Flow) Handle(session *model.Session, text string) (*model.Session, stri
 
 func (f *Flow) handleStart(session *model.Session, text string) (*model.Session, string) {
 
-	println("HANDLESTART entrou. text=", text)
-
 	if session.Name != "" || session.Service != "" || session.Date != "" || session.Time != "" {
 
 		if session.Name == "" {
@@ -97,15 +92,12 @@ func (f *Flow) handleStart(session *model.Session, text string) (*model.Session,
 			session.Time,
 		)
 	}
-	println("HANDLESTART antes do DetectIntent")
 
 	intent := DetectIntent(text)
-	println("HANDLESTART depois do DetectIntent. intent=", string(intent))
 
 	switch intent {
 
 	case IntentGreeting:
-		println("HANDLESTART -> IntentGreeting")
 		session.State = model.StateName // ✅ corrigido
 		return session, "Olá! Seja bem-vindo(a) ao salão 💇‍♀️\nQual seu nome?"
 
@@ -219,7 +211,6 @@ func (f *Flow) handleService(session *model.Session, text string) (*model.Sessio
 }
 
 func (f *Flow) handleDate(session *model.Session, text string) (*model.Session, string) {
-
 	parsed := utils.ParseDate(text)
 
 	if parsed != "" {
@@ -228,6 +219,33 @@ func (f *Flow) handleDate(session *model.Session, text string) (*model.Session, 
 
 	if session.Date == "" {
 		return session, "Não entendi a data 😅\nPode me dizer novamente?"
+	}
+
+	if session.Time != "" {
+		if session.Name == "" {
+			session.State = model.StateName
+			return session, "Perfeito 😊 Qual é o seu nome?"
+		}
+
+		if session.Service == "" {
+			session.State = model.StateService
+
+			services := repository.GetServices(session.ClientID)
+			response := "Qual serviço você deseja?\n"
+			for i, s := range services {
+				response += fmt.Sprintf("%d - %s\n", i+1, s.Name)
+			}
+
+			return session, response
+		}
+
+		session.State = model.StateConfirm
+		return session,
+			"📋 Confirmação do seu horário:\n\n" +
+				"👤 " + session.Name + "\n" +
+				"💇 " + session.Service + "\n" +
+				"📅 " + session.Date + "\n" +
+				"🕒 " + session.Time + "\n\nConfirmar? (sim/não)"
 	}
 
 	return f.presentAvailableSlots(session)
@@ -336,6 +354,9 @@ func (f *Flow) handleTime(session *model.Session, text string) (*model.Session, 
 		filtered := filterSlotsByPeriod(slots, intent.Period)
 
 		if len(filtered) == 0 {
+			if intent.Period == "noite" {
+				return session, "Não encontrei horários à noite nesse dia 😊 O salão atende até o fim da tarde."
+			}
 			return session, fmt.Sprintf("Não encontrei horários %s nesse dia 😊", periodLabel(intent.Period))
 		}
 
@@ -418,7 +439,6 @@ func (f *Flow) handleTime(session *model.Session, text string) (*model.Session, 
 		session.State = model.StateService
 
 		services := repository.GetServices(session.ClientID)
-
 		response := "Qual serviço você deseja?\n"
 		for i, s := range services {
 			response += fmt.Sprintf("%d - %s\n", i+1, s.Name)
@@ -428,7 +448,6 @@ func (f *Flow) handleTime(session *model.Session, text string) (*model.Session, 
 	}
 
 	session.State = model.StateConfirm
-
 	return session,
 		"📋 Confirmação do seu horário:\n\n" +
 			"👤 " + session.Name + "\n" +
@@ -439,7 +458,9 @@ func (f *Flow) handleTime(session *model.Session, text string) (*model.Session, 
 
 func (f *Flow) handleConfirm(session *model.Session, text string) (*model.Session, string) {
 
-	if text == "sim" {
+	intent := AnalyzeIntent(text)
+
+	if intent.IsPositive {
 
 		err := f.appointments.CreateAppointment(
 			session.ClientID,
@@ -549,7 +570,9 @@ func (f *Flow) handleRescheduleTime(session *model.Session, text string) (*model
 
 func (f *Flow) handleCancel(session *model.Session, text string) (*model.Session, string) {
 
-	if text == "sim" {
+	intent := AnalyzeIntent(text)
+
+	if intent.IsPositive {
 
 		err := f.appointments.CancelAppointment(
 			session.SelectedAppointmentID,
@@ -606,7 +629,7 @@ func affirmsSuggestedSlot(text string) bool {
 func findEarlierSlot(slots []string, current string) string {
 	for i, slot := range slots {
 		if strings.TrimSpace(slot) == strings.TrimSpace(current) {
-			for i > 0 {
+			if i > 0 {
 				return slots[i-1]
 			}
 			return ""
@@ -637,7 +660,7 @@ func filterSlotsByPeriod(slots []string, period string) []string {
 				filtered = append(filtered, slot)
 			}
 		case "tarde":
-			if slot >= "12:00" && slot < "18:00" {
+			if slot >= "12:00" && slot < "16:00" {
 				filtered = append(filtered, slot)
 			}
 		case "fim_tarde":
