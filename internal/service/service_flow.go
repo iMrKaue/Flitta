@@ -47,6 +47,12 @@ func ProcessMessage(userID, text string) string {
 
 	if session.State == model.StateIdle {
 
+		if session.Name == "" {
+			if detectedName := extractNameFromText(text); detectedName != "" {
+				session.Name = detectedName
+			}
+		}
+
 		if session.Service == "" {
 			if aiData.Service != "" {
 				session.Service = aiData.Service
@@ -108,6 +114,79 @@ func extractServiceFromText(text string, clientID int) string {
 		serviceName := strings.ToLower(strings.TrimSpace(s.Name))
 		if serviceName != "" && strings.Contains(text, serviceName) {
 			return s.Name
+		}
+	}
+
+	return ""
+}
+
+func extractNameFromText(text string) string {
+	text = strings.TrimSpace(text)
+	lower := strings.ToLower(text)
+
+	patterns := []string{
+		"meu nome é ",
+		"meu nome e ",
+		"sou",
+		"eu sou",
+	}
+
+	for _, p := range patterns {
+		if strings.Contains(lower, p) {
+			idx := strings.Index(lower, p)
+			if idx >= 0 {
+				namePart := strings.TrimSpace(text[idx+len(p):])
+
+				// corta se a frase continuar com outras intenções
+				cutters := []string{
+					" e quero",
+					", quero",
+					" quero",
+					" amanhã",
+					" amanha",
+					" hoje",
+					" segunda",
+					" terça",
+					" terca",
+					" quarta",
+					" quinta",
+					" sexta",
+					" sábado",
+					" sabado",
+					" domingo",
+					" às ",
+					" as ",
+					" de manhã",
+					" de manha",
+					" à tarde",
+					" a tarde",
+					" à noite",
+					" a noite",
+				}
+
+				lowerNamePart := strings.ToLower(namePart)
+				cutPos := len(namePart)
+
+				for _, cutter := range cutters {
+					if pos := strings.Index(lowerNamePart, cutter); pos >= 0 && pos < cutPos {
+						cutPos = pos
+					}
+				}
+
+				namePart = strings.TrimSpace(namePart[:cutPos])
+
+				words := strings.Fields(namePart)
+				if len(words) == 0 {
+					return ""
+				}
+
+				// aceita no máximo 3 palavras para nome
+				if len(words) > 3 {
+					words = words[:3]
+				}
+
+				return utils.Capitalize(strings.Join(words, " "))
+			}
 		}
 	}
 
