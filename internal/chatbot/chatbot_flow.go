@@ -332,7 +332,37 @@ func (f *Flow) handleTime(session *model.Session, text string) (*model.Session, 
 	}
 
 	if intent.Period != "" {
-		return session, "Perfeito 😊 Me diga um horário dentro desse período ou eu posso te sugerir um."
+		slots, _ := f.appointments.GetAvailableSlots(session.ClientID, session.Date)
+		filtered := filterSlotsByPeriod(slots, intent.Period)
+
+		if len(filtered) == 0 {
+			return session, fmt.Sprintf("Não encontrei horários %s nesse dia 😊", periodLabel(intent.Period))
+		}
+
+		session.SuggestedTime = filtered[0]
+
+		response := fmt.Sprintf(
+			"🕒 Tenho estes horários %s para %s:\n\n💡 Posso te sugerir %s. Quer esse?\n\n",
+			periodLabel(intent.Period),
+			session.Date,
+			filtered[0],
+		)
+
+		limit := len(filtered)
+		if limit > 8 {
+			limit = 8
+		}
+
+		for i := 0; i < limit; i++ {
+			if i < 3 {
+				response += "⭐ " + filtered[i] + "\n"
+			} else {
+				response += "• " + filtered[i] + "\n"
+			}
+		}
+
+		response += "\nDigite ou escolha um horário 😊"
+		return session, response
 	}
 
 	text = strings.TrimSpace(strings.ToLower(text))
@@ -595,4 +625,46 @@ func findLaterSlot(slots []string, current string) string {
 		}
 	}
 	return ""
+}
+
+func filterSlotsByPeriod(slots []string, period string) []string {
+	var filtered []string
+
+	for _, slot := range slots {
+		switch period {
+		case "manha":
+			if slot >= "09:00" && slot < "12:00" {
+				filtered = append(filtered, slot)
+			}
+		case "tarde":
+			if slot >= "12:00" && slot < "18:00" {
+				filtered = append(filtered, slot)
+			}
+		case "fim_tarde":
+			if slot >= "16:00" && slot < "18:00" {
+				filtered = append(filtered, slot)
+			}
+		case "noite":
+			if slot >= "18:00" && slot <= "23:59" {
+				filtered = append(filtered, slot)
+			}
+		}
+	}
+
+	return filtered
+}
+
+func periodLabel(period string) string {
+	switch period {
+	case "manha":
+		return "de manhã"
+	case "tarde":
+		return "à tarde"
+	case "fim_tarde":
+		return "no fim da tarde"
+	case "noite":
+		return "à noite"
+	default:
+		return "nesse período"
+	}
 }
