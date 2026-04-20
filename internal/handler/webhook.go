@@ -36,7 +36,9 @@ func WebhookHandler(w http.ResponseWriter, r *http.Request) {
 		text = msg.Text
 	}
 
+	println("WEBHOOK RECEBEU:", userID, text)
 	response := service.ProcessMessage(userID, text)
+	println("WEBHOOK RESPOSTA:", response)
 
 	// resposta depende da origem
 	if r.FormValue("From") != "" {
@@ -44,8 +46,8 @@ func WebhookHandler(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Content-Type", "application/xml")
 		w.Write([]byte(`
 		<Response>
-			<Message>` + response + `<Message>
-		<Response>
+			<Message>` + response + `</Message>
+		</Response>
 		`))
 	} else {
 		// Postman -> JSON

@@ -1,0 +1,598 @@
+package chatbot
+
+import (
+	"flitta/internal/model"
+	"flitta/internal/repository"
+	"flitta/internal/usecase"
+	"flitta/internal/utils"
+	"fmt"
+	"regexp"
+	"strconv"
+	"strings"
+)
+
+type Flow struct {
+	appointments *usecase.AppointmentUsecase
+}
+
+func NewFlow() *Flow {
+	return &Flow{appointments: usecase.NewAppointmentUsecase()}
+}
+
+func (f *Flow) Handle(session *model.Session, text string) (*model.Session, string) {
+
+	println("CHATBOT HANDLE entrou. state=", session.State, "text=", text)
+
+	switch session.State {
+
+	case model.StateIdle:
+		println("CHATBOT HANDLE -> StateIdle")
+		return f.handleStart(session, text)
+
+	case model.StateName:
+		return f.handleName(session, text)
+
+	case model.StateService:
+		return f.handleService(session, text)
+
+	case model.StateDate:
+		return f.handleDate(session, text)
+
+	case model.StateTime:
+		return f.handleTime(session, text)
+
+	case model.StateConfirm:
+		return f.handleConfirm(session, text)
+
+	case model.StateChooseAppointment:
+		return f.handleChooseAppointment(session, text)
+
+	case model.StateChooseAction:
+		return f.handleChooseAction(session, text)
+
+	case model.StateRescheduleTime:
+		return f.handleRescheduleTime(session, text)
+
+	case model.StateCancelConfirm:
+		return f.handleCancel(session, text)
+
+	default:
+		session.State = model.StateIdle
+		return session, "Não entendi 😅\nVamos começar novamente."
+	}
+}
+
+func (f *Flow) handleStart(session *model.Session, text string) (*model.Session, string) {
+
+	println("HANDLESTART entrou. text=", text)
+
+	if session.Name != "" || session.Service != "" || session.Date != "" || session.Time != "" {
+
+		if session.Name == "" {
+			session.State = model.StateName
+			return session, "Qual é o seu nome?"
+		}
+
+		if session.Service == "" {
+			session.State = model.StateService
+			return session, "Qual serviço você deseja?"
+		}
+
+		if session.Date == "" {
+			session.State = model.StateDate
+			return session, "Qual dia você deseja?"
+		}
+
+		if session.Time == "" {
+			session.State = model.StateTime
+			return session, "Qual horário você deseja?"
+		}
+
+		session.State = model.StateConfirm
+		return session, fmt.Sprintf(
+			"Perfeito 😊\n\nConfirma seu agendamento?\n\n👤 %s\n💇 %s\n📅 %s às %s",
+			session.Name,
+			session.Service,
+			session.Date,
+			session.Time,
+		)
+	}
+	println("HANDLESTART antes do DetectIntent")
+
+	intent := DetectIntent(text)
+	println("HANDLESTART depois do DetectIntent. intent=", string(intent))
+
+	switch intent {
+
+	case IntentGreeting:
+		println("HANDLESTART -> IntentGreeting")
+		session.State = model.StateName // ✅ corrigido
+		return session, "Olá! Seja bem-vindo(a) ao salão 💇‍♀️\nQual seu nome?"
+
+	case IntentSchedule:
+		session.State = model.StateName // ✅ corrigido
+		return session, "👋 Olá! Vamos agendar seu horário 😊\n\nQual seu nome?"
+
+	case IntentList:
+		session.State = model.StateChooseAppointment
+		return session, f.listAppointments(session)
+
+	default:
+		session.State = model.StateName // ✅ corrigido
+		return session, "Vamos começar 😊\nQual seu nome?"
+	}
+}
+
+func (f *Flow) handleName(session *model.Session, text string) (*model.Session, string) {
+
+	if len(text) < 3 ||
+		strings.Contains(text, "quero") ||
+		strings.Contains(text, "agendar") ||
+		strings.Contains(text, "horario") {
+
+		return session, "Pode me dizer seu nome? 😊"
+	}
+
+	session.Name = utils.Capitalize(text)
+
+	if session.Service == "" {
+		session.State = model.StateService
+
+		services := repository.GetServices(session.ClientID)
+
+		response := "Escolha o serviço:\n"
+		for i, a := range services {
+			response += fmt.Sprintf("%d - %s\n", i+1, a.Name)
+		}
+
+		return session, response
+	}
+
+	if session.Date == "" {
+		session.State = model.StateDate
+		return session, "Qual dia você deseja?"
+	}
+
+	if session.Time == "" {
+		return f.presentAvailableSlots(session)
+	}
+
+	session.State = model.StateConfirm
+	return session,
+		"📋 Confirmação do seu horário:\n\n" +
+			"👤 " + session.Name + "\n" +
+			"💇 " + session.Service + "\n" +
+			"📅 " + session.Date + "\n" +
+			"🕒 " + session.Time + "\n\nConfirmar? (sim/não)"
+
+}
+
+func (f *Flow) handleService(session *model.Session, text string) (*model.Session, string) {
+	services := repository.GetServices(session.ClientID)
+
+	index, err := strconv.Atoi(text)
+	if err == nil && index >= 1 && index <= len(services) {
+		session.Service = services[index-1].Name
+
+		if session.Date == "" {
+			session.State = model.StateDate
+			return session, "Qual dia você deseja?"
+		}
+
+		if session.Time == "" {
+			return f.presentAvailableSlots(session)
+		}
+
+		session.State = model.StateConfirm
+		return session,
+			"📋 Confirmação do seu horário:\n\n" +
+				"👤 " + session.Name + "\n" +
+				"💇 " + session.Service + "\n" +
+				"📅 " + session.Date + "\n" +
+				"🕒 " + session.Time + "\n\nConfirmar? (sim/não)"
+	}
+
+	for _, s := range services {
+		if strings.Contains(strings.ToLower(text), strings.ToLower(s.Name)) {
+			session.Service = s.Name
+
+			if session.Date == "" {
+				session.State = model.StateDate
+				return session, "Qual dia você deseja?"
+			}
+
+			if session.Time == "" {
+				return f.presentAvailableSlots(session)
+			}
+
+			session.State = model.StateConfirm
+			return session,
+				"📋 Confirmação do seu horário:\n\n" +
+					"👤 " + session.Name + "\n" +
+					"💇 " + session.Service + "\n" +
+					"📅 " + session.Date + "\n" +
+					"🕒 " + session.Time + "\n\nConfirmar? (sim/não)"
+		}
+	}
+
+	return session, "Não entendi 😅\nEscolha um dos serviços listados."
+}
+
+func (f *Flow) handleDate(session *model.Session, text string) (*model.Session, string) {
+
+	parsed := utils.ParseDate(text)
+
+	if parsed != "" {
+		session.Date = parsed
+	}
+
+	if session.Date == "" {
+		return session, "Não entendi a data 😅\nPode me dizer novamente?"
+	}
+
+	return f.presentAvailableSlots(session)
+}
+
+// presentAvailableSlots assume session.Date preenchido; coloca em StateTime e lista horários + sugestão.
+func (f *Flow) presentAvailableSlots(session *model.Session) (*model.Session, string) {
+
+	session.State = model.StateTime
+
+	slots, _ := f.appointments.GetAvailableSlots(session.ClientID, session.Date)
+
+	if len(slots) == 0 {
+		session.State = model.StateDate
+		session.SuggestedTime = ""
+		return session, "😢 Não há horários livres nessa data.\nQual outro dia você prefere?"
+	}
+
+	suggestedOK := false
+	for _, s := range slots {
+		if session.SuggestedTime != "" && s == session.SuggestedTime {
+			suggestedOK = true
+			break
+		}
+	}
+	if !suggestedOK {
+		session.SuggestedTime = slots[0]
+	}
+
+	response := "🕒 Olha os horários disponíveis para " + session.Date + ":\n\n"
+	response += "💡 Tenho um horário às " + session.SuggestedTime + " (recomendado), quer esse? 😊\n\n"
+
+	shown := 0
+	for _, s := range slots {
+		if s == session.SuggestedTime {
+			continue
+		}
+		if shown < 3 {
+			response += "⭐ " + s + "\n"
+		} else {
+			response += "• " + s + "\n"
+		}
+		shown++
+	}
+
+	response += "\nDigite ou escolha um horário 😊"
+
+	return session, response
+}
+
+func (f *Flow) handleTime(session *model.Session, text string) (*model.Session, string) {
+	intent := AnalyzeIntent(text)
+
+	if session.SuggestedTime != "" && intent.IsPositive {
+		text = session.SuggestedTime
+	}
+
+	if intent.AsksOtherDay {
+		session.Date = ""
+		session.Time = ""
+		session.SuggestedTime = ""
+		session.State = model.StateDate
+		return session, "Certo 😊 Qual outro dia você deseja?"
+	}
+
+	if intent.AsksEarlier {
+		slots, _ := f.appointments.GetAvailableSlots(session.ClientID, session.Date)
+
+		base := session.SuggestedTime
+		if base == "" {
+			base = session.Time
+		}
+
+		if base != "" {
+			earlier := findEarlierSlot(slots, base)
+			if earlier != "" {
+				session.SuggestedTime = earlier
+				return session, fmt.Sprintf("Perfeito 😊 Tenho um horário mais cedo às %s. Quer esse?", earlier)
+			}
+		}
+
+		return session, "Não tenho um horário mais cedo disponível 😊"
+	}
+
+	if intent.AsksLater {
+		slots, _ := f.appointments.GetAvailableSlots(session.ClientID, session.Date)
+
+		base := session.SuggestedTime
+		if base == "" {
+			base = session.Time
+		}
+
+		if base != "" {
+			later := findLaterSlot(slots, base)
+			if later != "" {
+				session.SuggestedTime = later
+				return session, fmt.Sprintf("Perfeito 😊 Tenho um horário mais tarde às %s. Quer esse?", later)
+			}
+		}
+
+		return session, "Não tenho um horário mais tarde disponível 😊"
+	}
+
+	if intent.Period != "" {
+		return session, "Perfeito 😊 Me diga um horário dentro desse período ou eu posso te sugerir um."
+	}
+
+	text = strings.TrimSpace(strings.ToLower(text))
+
+	if normalized := utils.NormalizeHour(text); normalized != "" {
+		text = normalized
+	} else {
+		text = strings.ReplaceAll(text, "às", "")
+		text = strings.ReplaceAll(text, "h", "")
+		text = strings.TrimSpace(text)
+
+		if len(text) == 2 {
+			text = text + ":00"
+		}
+
+		if len(text) == 3 {
+			text = text[:1] + ":" + text[1:]
+		}
+	}
+
+	slots, _ := f.appointments.GetAvailableSlots(session.ClientID, session.Date)
+
+	valid := false
+	for _, s := range slots {
+		if strings.TrimSpace(s) == strings.TrimSpace(text) {
+			valid = true
+			break
+		}
+	}
+
+	if !valid {
+		closest := ""
+		if len(slots) > 0 {
+			closest = slots[0]
+		}
+
+		return session,
+			fmt.Sprintf(
+				"😅 Esse horário não está disponível.\n\nQue tal %s?\n\nOu escolha outro abaixo 👇",
+				closest,
+			)
+	}
+
+	session.Time = text
+	session.SuggestedTime = ""
+
+	if session.Name == "" {
+		session.State = model.StateName
+		return session, "Perfeito 😊 Qual é o seu nome?"
+	}
+
+	if session.Service == "" {
+		session.State = model.StateService
+
+		services := repository.GetServices(session.ClientID)
+
+		response := "Qual serviço você deseja?\n"
+		for i, s := range services {
+			response += fmt.Sprintf("%d - %s\n", i+1, s.Name)
+		}
+
+		return session, response
+	}
+
+	session.State = model.StateConfirm
+
+	return session,
+		"📋 Confirmação do seu horário:\n\n" +
+			"👤 " + session.Name + "\n" +
+			"💇 " + session.Service + "\n" +
+			"📅 " + session.Date + "\n" +
+			"🕒 " + session.Time + "\n\nConfirmar? (sim/não)"
+}
+
+func (f *Flow) handleConfirm(session *model.Session, text string) (*model.Session, string) {
+
+	if text == "sim" {
+
+		err := f.appointments.CreateAppointment(
+			session.ClientID,
+			session.Phone,
+			session.Name,
+			session.Service,
+			session.Date,
+			session.Time,
+		)
+
+		if err != nil {
+			return session, "Esse horário acabou de ser ocupado 😢\nEscolha outro horário."
+		}
+
+		session.State = model.StateIdle
+
+		return session,
+			fmt.Sprintf(
+				"✅ Agendamento confirmado!\n\n👤 %s\n💇 %s\n📅 %s\n🕒 %s\n\nTe esperamos no horário combinado 😊",
+				session.Name, session.Service, session.Date, session.Time,
+			)
+	}
+
+	session.State = model.StateIdle
+	return session, "Agendamento cancelado. Podemos começar novamente 😊"
+}
+
+func (f *Flow) listAppointments(session *model.Session) string {
+
+	list, err := f.appointments.GetAppointmentsByCustomerPhone(
+		session.ClientID,
+		session.Phone,
+	)
+
+	if err != nil || len(list) == 0 {
+		return "Você não tem agendamentos ainda 😊"
+	}
+
+	response := "📅 Seus agendamentos:\n\n"
+
+	for i, a := range list {
+		response += fmt.Sprintf("%d - 💇 %s\n📅 %s às %s\n\n",
+			i+1, a.Service, a.Date, a.Time)
+	}
+
+	response += "Digite o número do agendamento."
+
+	return response
+}
+
+func (f *Flow) handleChooseAppointment(session *model.Session, text string) (*model.Session, string) {
+
+	list, _ := f.appointments.GetAppointmentsByCustomerPhone(
+		session.ClientID,
+		session.Phone,
+	)
+
+	index, err := strconv.Atoi(text)
+	if err != nil || index < 1 || index > len(list) {
+		return session, "Digite um número válido 😊"
+	}
+
+	selected := list[index-1]
+
+	session.SelectedAppointmentID = selected.ID
+	session.State = model.StateChooseAction
+
+	return session, "O que deseja fazer?\n\n1 - Remarcar\n2 - Cancelar"
+}
+
+func (f *Flow) handleChooseAction(session *model.Session, text string) (*model.Session, string) {
+
+	if text == "1" {
+		session.State = model.StateRescheduleTime
+		return session, "Digite o novo horário desejado 😊"
+	}
+
+	if text == "2" {
+		session.State = model.StateCancelConfirm
+		return session, "Deseja cancelar? (sim/não)"
+	}
+
+	return session, "Escolha 1 para remarcar ou 2 para cancelar"
+}
+
+func (f *Flow) handleRescheduleTime(session *model.Session, text string) (*model.Session, string) {
+
+	if session.SelectedAppointmentID == 0 {
+		session.State = model.StateIdle
+		return session, "Erro ao identificar agendamento. Tente novamente 🙏"
+	}
+
+	err := f.appointments.RescheduleAppointmentByID(
+		session.SelectedAppointmentID,
+		session.Phone,
+		text,
+	)
+
+	if err != nil {
+		return session, "Não foi possível remarcar 😢\nTente outro horário."
+	}
+
+	session.State = model.StateIdle
+
+	return session, "🔄 Agendamento atualizado com sucesso!"
+}
+
+func (f *Flow) handleCancel(session *model.Session, text string) (*model.Session, string) {
+
+	if text == "sim" {
+
+		err := f.appointments.CancelAppointment(
+			session.SelectedAppointmentID,
+			session.ClientID,
+			session.Phone,
+		)
+
+		if err != nil {
+			return session, "Erro ao cancelar 😢"
+		}
+
+		session.State = model.StateIdle
+		return session, "❌ Agendamento cancelado com sucesso!"
+	}
+
+	session.State = model.StateIdle
+	return session, "Cancelamento abortado 👍"
+}
+
+var (
+	reAffirmPodeSer = regexp.MustCompile(`pode\s+ser`)
+	reAffirmNegacao = regexp.MustCompile(`\b(não|nao)\b`)
+)
+
+// affirmsSuggestedSlot detecta se o usuário aceitou o horário recomendado (evita "pode" sozinho; aceita "pode  ser", "pode ser!", etc.).
+func affirmsSuggestedSlot(text string) bool {
+	t := strings.ToLower(strings.TrimSpace(text))
+	if t == "" {
+		return false
+	}
+	if reAffirmNegacao.MatchString(t) {
+		return false
+	}
+	t = strings.Trim(t, ".,!?;…")
+	if t == "sim" || t == "s" || t == "ok" || t == "okay" {
+		return true
+	}
+	if strings.Contains(t, " sim") || strings.HasPrefix(t, "sim ") {
+		return true
+	}
+	if reAffirmPodeSer.MatchString(t) {
+		return true
+	}
+	return strings.Contains(t, "fechado") ||
+		strings.Contains(t, "confirmo") ||
+		strings.Contains(t, "claro") ||
+		strings.Contains(t, "isso mesmo") ||
+		strings.Contains(t, "esse mesmo") ||
+		t == "isso" ||
+		strings.Contains(t, "beleza") ||
+		strings.Contains(t, "combinado")
+}
+
+func findEarlierSlot(slots []string, current string) string {
+	for i, slot := range slots {
+		if strings.TrimSpace(slot) == strings.TrimSpace(current) {
+			for i > 0 {
+				return slots[i-1]
+			}
+			return ""
+		}
+	}
+	return ""
+}
+
+func findLaterSlot(slots []string, current string) string {
+	for i, slot := range slots {
+		if strings.TrimSpace(slot) == strings.TrimSpace(current) {
+			if i < len(slots)-1 {
+				return slots[i+1]
+			}
+			return ""
+		}
+	}
+	return ""
+}
