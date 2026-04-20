@@ -63,14 +63,16 @@ func (f *Flow) handleStart(session *model.Session, text string) (*model.Session,
 
 	if session.Name != "" || session.Service != "" || session.Date != "" || session.Time != "" {
 
-		if session.Name == "" {
-			session.State = model.StateName
-			return session, "Qual é o seu nome?"
-		}
-
 		if session.Service == "" {
 			session.State = model.StateService
-			return session, "Qual serviço você deseja?"
+
+			services := repository.GetServices(session.ClientID)
+			response := "Qual serviço você deseja?\n"
+			for i, s := range services {
+				response += fmt.Sprintf("%d - %s\n", i+1, s.Name)
+			}
+
+			return session, response
 		}
 
 		if session.Date == "" {
@@ -80,17 +82,21 @@ func (f *Flow) handleStart(session *model.Session, text string) (*model.Session,
 
 		if session.Time == "" {
 			session.State = model.StateTime
-			return session, "Qual horário você deseja?"
+			return f.handleTime(session, text)
+		}
+
+		if session.Name == "" {
+			session.State = model.StateName
+			return session, "Qual é o seu nome?"
 		}
 
 		session.State = model.StateConfirm
-		return session, fmt.Sprintf(
-			"Perfeito 😊\n\nConfirma seu agendamento?\n\n👤 %s\n💇 %s\n📅 %s às %s",
-			session.Name,
-			session.Service,
-			session.Date,
-			session.Time,
-		)
+		return session,
+			"📋 Confirmação do seu horário:\n\n" +
+				"👤 " + session.Name + "\n" +
+				"💇 " + session.Service + "\n" +
+				"📅 " + session.Date + "\n" +
+				"🕒 " + session.Time + "\n\nConfirmar? (sim/não)"
 	}
 
 	intent := DetectIntent(text)
@@ -298,6 +304,11 @@ func (f *Flow) presentAvailableSlots(session *model.Session) (*model.Session, st
 
 func (f *Flow) handleTime(session *model.Session, text string) (*model.Session, string) {
 	intent := AnalyzeIntent(text)
+
+	if strings.HasPrefix(session.SuggestedTime, "__period__:") && intent.Period == "" {
+		intent.Period = strings.TrimPrefix(session.SuggestedTime, "__period__:")
+		session.SuggestedTime = ""
+	}
 
 	if session.SuggestedTime != "" && intent.IsPositive {
 		text = session.SuggestedTime

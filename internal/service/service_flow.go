@@ -80,7 +80,14 @@ func ProcessMessage(userID, text string) string {
 			}
 		}
 
+		detectedPeriod := utils.ExtractPeriod(text)
+
 		if session.Time != "" && session.Date != "" {
+			session.State = model.StateTime
+		}
+
+		if session.Date != "" && session.Time == "" && detectedPeriod != "" {
+			session.SuggestedTime = "__period__:" + detectedPeriod
 			session.State = model.StateTime
 		}
 	}
