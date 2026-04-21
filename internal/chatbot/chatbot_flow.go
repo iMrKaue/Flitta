@@ -82,7 +82,16 @@ func (f *Flow) handleStart(session *model.Session, text string) (*model.Session,
 
 		if session.Time == "" {
 			session.State = model.StateTime
-			return f.handleTime(session, text)
+
+			if strings.HasPrefix(session.SuggestedTime, "__period__:") {
+				return f.handleTime(session, text)
+			}
+
+			if utils.NormalizeHour(text) != "" {
+				return f.handleTime(session, text)
+			}
+
+			return f.presentAvailableSlots(session)
 		}
 
 		if session.Name == "" {
