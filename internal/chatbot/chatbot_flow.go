@@ -222,7 +222,12 @@ func (f *Flow) handleService(session *model.Session, text string) (*model.Sessio
 		}
 	}
 
-	return session, "Não entendi 😅\nEscolha um dos serviços listados."
+	response := "Não entendi 😅\nEscolha um dos serviços abaixo:\n"
+	for i, s := range services {
+		response += fmt.Sprintf("%d - %s\n", i+1, s.Name)
+	}
+
+	return session, response
 }
 
 func (f *Flow) handleDate(session *model.Session, text string) (*model.Session, string) {
@@ -308,6 +313,45 @@ func (f *Flow) presentAvailableSlots(session *model.Session) (*model.Session, st
 
 	response += "\nDigite ou escolha um horário 😊"
 
+	return session, response
+}
+
+func (f *Flow) presentAvailableSlotsExcluding(session *model.Session, excluded string) (*model.Session, string) {
+	slots, _ := f.appointments.GetAvailableSlots(session.ClientID, session.Date)
+
+	var filtered []string
+	for _, slot := range slots {
+		if strings.TrimSpace(slot) != strings.TrimSpace(excluded) {
+			filtered = append(filtered, slot)
+		}
+	}
+
+	if len(filtered) == 0 {
+		return session, "Não encontrei outros horários disponíveis nesse dia 😢"
+	}
+
+	session.SuggestedTime = filtered[0]
+
+	response := fmt.Sprintf(
+		"🕒 Tudo bem 😊 Tenho outros horários disponíveis para %s:\n\n💡 Posso te sugerir %s. Quer esse?\n\n",
+		session.Date,
+		filtered[0],
+	)
+
+	limit := len(filtered)
+	if limit > 8 {
+		limit = 8
+	}
+
+	for i := 0; i < limit; i++ {
+		if i < 3 {
+			response += "⭐ " + filtered[i] + "\n"
+		} else {
+			response += "• " + filtered[i] + "\n"
+		}
+	}
+
+	response += "\nDigite ou escolha um horário 😊"
 	return session, response
 }
 
@@ -477,18 +521,21 @@ func (f *Flow) handleTime(session *model.Session, text string) (*model.Session, 
 }
 
 func (f *Flow) handleConfirm(session *model.Session, text string) (*model.Session, string) {
-
 	intent := AnalyzeIntent(text)
 
 	if intent.IsPositive {
+		name := session.Name
+		service := session.Service
+		date := session.Date
+		timeValue := session.Time
 
 		err := f.appointments.CreateAppointment(
 			session.ClientID,
 			session.Phone,
-			session.Name,
-			session.Service,
-			session.Date,
-			session.Time,
+			name,
+			service,
+			date,
+			timeValue,
 		)
 
 		if err != nil {
@@ -496,16 +543,30 @@ func (f *Flow) handleConfirm(session *model.Session, text string) (*model.Sessio
 		}
 
 		session.State = model.StateIdle
+		session.Name = ""
+		session.Service = ""
+		session.Date = ""
+		session.Time = ""
+		session.SuggestedTime = ""
 
 		return session,
 			fmt.Sprintf(
 				"✅ Agendamento confirmado!\n\n👤 %s\n💇 %s\n📅 %s\n🕒 %s\n\nTe esperamos no horário combinado 😊",
-				session.Name, session.Service, session.Date, session.Time,
+				name, service, date, timeValue,
 			)
 	}
 
-	session.State = model.StateIdle
-	return session, "Agendamento cancelado. Podemos começar novamente 😊"
+	if intent.IsNegative {
+		rejectedTime := session.Time
+
+		session.State = model.StateTime
+		session.Time = ""
+		session.SuggestedTime = ""
+
+		return f.presentAvailableSlotsExcluding(session, rejectedTime)
+	}
+
+	return session, "Por favor, responda com sim para confirmar ou não para escolher outro horário 😊"
 }
 
 func (f *Flow) listAppointments(session *model.Session) string {

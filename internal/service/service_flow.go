@@ -150,6 +150,8 @@ func cutNameAtIntentMarkers(namePart string) string {
 		" e domingo",
 		" às ",
 		" as ",
+		" e às ",
+		" e as ",
 		" de manhã",
 		" de manha",
 		" à tarde",
