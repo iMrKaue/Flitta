@@ -524,7 +524,6 @@ func (f *Flow) handleConfirm(session *model.Session, text string) (*model.Sessio
 }
 
 func (f *Flow) listAppointments(session *model.Session) string {
-
 	list, err := f.appointments.GetAppointmentsByCustomerPhone(
 		session.ClientID,
 		session.Phone,
@@ -534,27 +533,21 @@ func (f *Flow) listAppointments(session *model.Session) string {
 		return "Você não tem agendamentos ainda 😊"
 	}
 
-	response := "📅 Seus agendamentos:\n\n"
-
-	for i, a := range list {
-		response += fmt.Sprintf("%d - 💇 %s\n📅 %s às %s\n\n",
-			i+1, a.Service, a.Date, a.Time)
-	}
-
-	response += "Digite o número do agendamento."
-
-	return response
+	return buildAppointmentsList(list)
 }
 
 func (f *Flow) handleChooseAppointment(session *model.Session, text string) (*model.Session, string) {
-
 	list, _ := f.appointments.GetAppointmentsByCustomerPhone(
 		session.ClientID,
 		session.Phone,
 	)
 
-	index, err := strconv.Atoi(text)
-	if err != nil || index < 1 || index > len(list) {
+	index := extractAppointmentSelection(text)
+	if index == 0 {
+		return session, "Não entendi qual agendamento você quer 😅\nDigite o número correspondente."
+	}
+
+	if index < 1 || index > len(list) {
 		return session, "Digite um número válido 😊"
 	}
 
@@ -759,4 +752,38 @@ func buildConfirmationMessage(session *model.Session) string {
 func goToConfirmationIfReady(session *model.Session) (*model.Session, string) {
 	session.State = model.StateConfirm
 	return session, buildConfirmationMessage(session)
+}
+
+func buildAppointmentsList(appointments []model.Appointment) string {
+	response := "📅 Seus agendamentos:\n\n"
+
+	for i, a := range appointments {
+		response += fmt.Sprintf(
+			"%d - 💇 %s\n📅 %s às %s\n\n",
+			i+1,
+			a.Service,
+			a.Date,
+			a.Time,
+		)
+	}
+
+	response += "Digite o número do agendamento."
+	return response
+}
+
+func extractAppointmentSelection(text string) int {
+	text = strings.ToLower(strings.TrimSpace(text))
+
+	re := regexp.MustCompile(`\d+`)
+	match := re.FindString(text)
+	if match == "" {
+		return 0
+	}
+
+	n, err := strconv.Atoi(match)
+	if err != nil {
+		return 0
+	}
+
+	return n
 }
