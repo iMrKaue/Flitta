@@ -32,7 +32,19 @@ func ContainsAny(text string, terms ...string) bool {
 	text = NormalizeText(text)
 
 	for _, term := range terms {
-		if strings.Contains(text, NormalizeText(term)) {
+		term = NormalizeText(term)
+
+		// para termos curtos, exige palavra inteira
+		if len(term) <= 2 {
+			pattern := `(?:^|\s)` + regexp.QuoteMeta(term) + `(?:$|\s)`
+			matched, _ := regexp.MatchString(pattern, text)
+			if matched {
+				return true
+			}
+			continue
+		}
+
+		if strings.Contains(text, term) {
 			return true
 		}
 	}

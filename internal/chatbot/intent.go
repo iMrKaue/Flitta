@@ -49,7 +49,7 @@ func AnalyzeIntent(text string) IntentResult {
 	case utils.ContainsAny(t, "oi", "ola", "olá", "bom dia", "boa tarde", "boa noite"):
 		result.MainIntent = IntentGreeting
 
-	case utils.ContainsAny(t, "agendar", "marcar", "quero agendar", "quero marcar"):
+	case utils.ContainsAny(t, "agendar", "marcar", "quero agendar", "quero marcar", "gostaria de agendar", "gostaria de marcar"):
 		result.MainIntent = IntentSchedule
 
 	case utils.ContainsAny(t, "horario", "horário", "vaga", "disponivel", "disponível", "tem horario", "tem horário"):

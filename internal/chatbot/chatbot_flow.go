@@ -114,19 +114,18 @@ func (f *Flow) handleStart(session *model.Session, text string) (*model.Session,
 
 	case IntentGreeting:
 		session.State = model.StateName // ✅ corrigido
-		return session, "Olá! Seja bem-vindo(a) ao salão 💇‍♀️\nQual seu nome?"
+		return session, "Olá! Seja bem-vindo(a) 😊\nQual é o seu nome?"
 
 	case IntentSchedule:
 		session.State = model.StateName // ✅ corrigido
-		return session, "👋 Olá! Vamos agendar seu horário 😊\n\nQual seu nome?"
+		return session, "Perfeito 😊 Vamos agendar seu horário.\nQual é o seu nome?"
 
 	case IntentList:
 		session.State = model.StateChooseAppointment
 		return session, f.listAppointments(session)
 
 	default:
-		session.State = model.StateName // ✅ corrigido
-		return session, "Vamos começar 😊\nQual seu nome?"
+		return session, "Não entendi direito 😊\nVocê quer agendar, remarcar, cancelar ou ver seus agendamentos?"
 	}
 }
 
@@ -147,7 +146,7 @@ func (f *Flow) handleName(session *model.Session, text string) (*model.Session, 
 
 		services := repository.GetServices(session.ClientID)
 
-		response := "Escolha o serviço:\n"
+		response := "Perfeito 😊\nEscolha um serviço abaixo:\n"
 		for i, a := range services {
 			response += fmt.Sprintf("%d - %s\n", i+1, a.Name)
 		}
@@ -157,7 +156,7 @@ func (f *Flow) handleName(session *model.Session, text string) (*model.Session, 
 
 	if session.Date == "" {
 		session.State = model.StateDate
-		return session, "Qual dia você deseja?"
+		return session, "Qual dia você deseja? 😊"
 	}
 
 	if session.Time == "" {
@@ -222,7 +221,7 @@ func (f *Flow) handleService(session *model.Session, text string) (*model.Sessio
 		}
 	}
 
-	response := "Não entendi 😅\nEscolha um dos serviços abaixo:\n"
+	response := "Não entendi qual serviço você deseja 😅\nEscolha um dos serviços abaixo:\n"
 	for i, s := range services {
 		response += fmt.Sprintf("%d - %s\n", i+1, s.Name)
 	}
@@ -238,7 +237,7 @@ func (f *Flow) handleDate(session *model.Session, text string) (*model.Session, 
 	}
 
 	if session.Date == "" {
-		return session, "Não entendi a data 😅\nPode me dizer novamente?"
+		return session, "Não entendi o dia 😅\nVocê pode me dizer, por exemplo: hoje, amanhã, sexta-feira."
 	}
 
 	if session.Time != "" {
@@ -251,7 +250,7 @@ func (f *Flow) handleDate(session *model.Session, text string) (*model.Session, 
 			session.State = model.StateService
 
 			services := repository.GetServices(session.ClientID)
-			response := "Qual serviço você deseja?\n"
+			response := "Perfeito 😊\nEscolha um serviço abaixo:\n"
 			for i, s := range services {
 				response += fmt.Sprintf("%d - %s\n", i+1, s.Name)
 			}
@@ -479,16 +478,33 @@ func (f *Flow) handleTime(session *model.Session, text string) (*model.Session, 
 	}
 
 	if !valid {
-		closest := ""
-		if len(slots) > 0 {
-			closest = slots[0]
+		if len(slots) == 0 {
+			return session, "Não encontrei horários disponíveis para esse dia 😢\nVocê pode tentar outro dia."
 		}
 
-		return session,
-			fmt.Sprintf(
-				"😅 Esse horário não está disponível.\n\nQue tal %s?\n\nOu escolha outro abaixo 👇",
-				closest,
-			)
+		closest := slots[0]
+		session.SuggestedTime = closest
+
+		response := fmt.Sprintf(
+			"😅 Esse horário não está disponível.\n\nQue tal %s?\n\nOu escolha outro abaixo 👇\n\n",
+			closest,
+		)
+
+		limit := len(slots)
+		if limit > 8 {
+			limit = 8
+		}
+
+		for i := 0; i < limit; i++ {
+			if i < 3 {
+				response += "⭐ " + slots[i] + "\n"
+			} else {
+				response += "• " + slots[i] + "\n"
+			}
+		}
+
+		response += "\nDigite ou escolha um horário 😊"
+		return session, response
 	}
 
 	session.Time = text
@@ -566,7 +582,7 @@ func (f *Flow) handleConfirm(session *model.Session, text string) (*model.Sessio
 		return f.presentAvailableSlotsExcluding(session, rejectedTime)
 	}
 
-	return session, "Por favor, responda com sim para confirmar ou não para escolher outro horário 😊"
+	return session, "Não entendi sua resposta 😊\nResponda com sim para confirmar ou não para escolher outro horário."
 }
 
 func (f *Flow) listAppointments(session *model.Session) string {
@@ -670,7 +686,7 @@ func (f *Flow) handleCancel(session *model.Session, text string) (*model.Session
 	}
 
 	session.State = model.StateIdle
-	return session, "Cancelamento abortado 👍"
+	return session, "Não entendi sua resposta 😊\nResponda com sim para cancelar ou não para continuar com seu agendamento."
 }
 
 var (
