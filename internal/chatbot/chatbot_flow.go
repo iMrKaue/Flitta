@@ -65,14 +65,7 @@ func (f *Flow) handleStart(session *model.Session, text string) (*model.Session,
 
 		if session.Service == "" {
 			session.State = model.StateService
-
-			services := repository.GetServices(session.ClientID)
-			response := "Qual serviço você deseja?\n"
-			for i, s := range services {
-				response += fmt.Sprintf("%d - %s\n", i+1, s.Name)
-			}
-
-			return session, response
+			return session, buildServiceList(session.ClientID, false)
 		}
 
 		if session.Date == "" {
@@ -143,15 +136,7 @@ func (f *Flow) handleName(session *model.Session, text string) (*model.Session, 
 
 	if session.Service == "" {
 		session.State = model.StateService
-
-		services := repository.GetServices(session.ClientID)
-
-		response := "Perfeito 😊\nEscolha um serviço abaixo:\n"
-		for i, a := range services {
-			response += fmt.Sprintf("%d - %s\n", i+1, a.Name)
-		}
-
-		return session, response
+		return session, buildServiceList(session.ClientID, true)
 	}
 
 	if session.Date == "" {
@@ -163,14 +148,7 @@ func (f *Flow) handleName(session *model.Session, text string) (*model.Session, 
 		return f.presentAvailableSlots(session)
 	}
 
-	session.State = model.StateConfirm
-	return session,
-		"📋 Confirmação do seu horário:\n\n" +
-			"👤 " + session.Name + "\n" +
-			"💇 " + session.Service + "\n" +
-			"📅 " + session.Date + "\n" +
-			"🕒 " + session.Time + "\n\nConfirmar? (sim/não)"
-
+	return goToConfirmationIfReady(session)
 }
 
 func (f *Flow) handleService(session *model.Session, text string) (*model.Session, string) {
@@ -182,20 +160,14 @@ func (f *Flow) handleService(session *model.Session, text string) (*model.Sessio
 
 		if session.Date == "" {
 			session.State = model.StateDate
-			return session, "Qual dia você deseja?"
+			return session, "Qual dia você deseja? 😊"
 		}
 
 		if session.Time == "" {
 			return f.presentAvailableSlots(session)
 		}
 
-		session.State = model.StateConfirm
-		return session,
-			"📋 Confirmação do seu horário:\n\n" +
-				"👤 " + session.Name + "\n" +
-				"💇 " + session.Service + "\n" +
-				"📅 " + session.Date + "\n" +
-				"🕒 " + session.Time + "\n\nConfirmar? (sim/não)"
+		return goToConfirmationIfReady(session)
 	}
 
 	for _, s := range services {
@@ -204,20 +176,14 @@ func (f *Flow) handleService(session *model.Session, text string) (*model.Sessio
 
 			if session.Date == "" {
 				session.State = model.StateDate
-				return session, "Qual dia você deseja?"
+				return session, "Qual dia você deseja? 😊"
 			}
 
 			if session.Time == "" {
 				return f.presentAvailableSlots(session)
 			}
 
-			session.State = model.StateConfirm
-			return session,
-				"📋 Confirmação do seu horário:\n\n" +
-					"👤 " + session.Name + "\n" +
-					"💇 " + session.Service + "\n" +
-					"📅 " + session.Date + "\n" +
-					"🕒 " + session.Time + "\n\nConfirmar? (sim/não)"
+			return goToConfirmationIfReady(session)
 		}
 	}
 
@@ -242,29 +208,15 @@ func (f *Flow) handleDate(session *model.Session, text string) (*model.Session, 
 
 	if session.Time != "" {
 		if session.Name == "" {
-			session.State = model.StateName
-			return session, "Perfeito 😊 Qual é o seu nome?"
+			return askName(session)
 		}
 
 		if session.Service == "" {
 			session.State = model.StateService
-
-			services := repository.GetServices(session.ClientID)
-			response := "Perfeito 😊\nEscolha um serviço abaixo:\n"
-			for i, s := range services {
-				response += fmt.Sprintf("%d - %s\n", i+1, s.Name)
-			}
-
-			return session, response
+			return session, buildServiceList(session.ClientID, true)
 		}
 
-		session.State = model.StateConfirm
-		return session,
-			"📋 Confirmação do seu horário:\n\n" +
-				"👤 " + session.Name + "\n" +
-				"💇 " + session.Service + "\n" +
-				"📅 " + session.Date + "\n" +
-				"🕒 " + session.Time + "\n\nConfirmar? (sim/não)"
+		return goToConfirmationIfReady(session)
 	}
 
 	return f.presentAvailableSlots(session)
@@ -511,29 +463,15 @@ func (f *Flow) handleTime(session *model.Session, text string) (*model.Session, 
 	session.SuggestedTime = ""
 
 	if session.Name == "" {
-		session.State = model.StateName
-		return session, "Perfeito 😊 Qual é o seu nome?"
+		return askName(session)
 	}
 
 	if session.Service == "" {
 		session.State = model.StateService
-
-		services := repository.GetServices(session.ClientID)
-		response := "Qual serviço você deseja?\n"
-		for i, s := range services {
-			response += fmt.Sprintf("%d - %s\n", i+1, s.Name)
-		}
-
-		return session, response
+		return session, buildServiceList(session.ClientID, false)
 	}
 
-	session.State = model.StateConfirm
-	return session,
-		"📋 Confirmação do seu horário:\n\n" +
-			"👤 " + session.Name + "\n" +
-			"💇 " + session.Service + "\n" +
-			"📅 " + session.Date + "\n" +
-			"🕒 " + session.Time + "\n\nConfirmar? (sim/não)"
+	return goToConfirmationIfReady(session)
 }
 
 func (f *Flow) handleConfirm(session *model.Session, text string) (*model.Session, string) {
@@ -787,4 +725,38 @@ func periodLabel(period string) string {
 	default:
 		return "nesse período"
 	}
+}
+
+func askName(session *model.Session) (*model.Session, string) {
+	session.State = model.StateName
+	return session, "Perfeito 😊 Qual é o seu nome?"
+}
+
+func buildServiceList(clientID int, withIntro bool) string {
+	services := repository.GetServices(clientID)
+
+	response := ""
+	if withIntro {
+		response = "Perfeito 😊\n"
+	}
+	response += "Escolha um serviço abaixo:\n"
+
+	for i, s := range services {
+		response += fmt.Sprintf("%d - %s\n", i+1, s.Name)
+	}
+
+	return response
+}
+
+func buildConfirmationMessage(session *model.Session) string {
+	return "📋 Confirmação do seu horário:\n\n" +
+		"👤 " + session.Name + "\n" +
+		"💇 " + session.Service + "\n" +
+		"📅 " + session.Date + "\n" +
+		"🕒 " + session.Time + "\n\nConfirmar? (sim/não)"
+}
+
+func goToConfirmationIfReady(session *model.Session) (*model.Session, string) {
+	session.State = model.StateConfirm
+	return session, buildConfirmationMessage(session)
 }
