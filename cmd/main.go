@@ -6,21 +6,14 @@ import (
 	"flitta/internal/middleware"
 	"log"
 	"net/http"
-	"os"
 
 	"github.com/joho/godotenv"
 )
 
 func main() {
-
-	err := godotenv.Load("../flitta-backend/.env")
-	if err != nil {
+	if err := godotenv.Load(); err != nil {
 		log.Println("Aviso: .env não carregado")
-	} else {
-		log.Println(".env carregado com sucesso")
 	}
-
-	log.Println("JWT_SECRET", os.Getenv("JWT_SECRET"))
 
 	database.ConnectDB()
 

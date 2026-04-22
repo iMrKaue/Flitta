@@ -11,21 +11,17 @@ import (
 )
 
 func ProcessMessage(userID, text string) string {
-	println("1. entrou em ProcessMessage")
 
 	clientID, err := GetClientByPhone(userID)
-	println("2. voltou de GetClientByPhone")
 
 	if err != nil {
 		return "Empresa não encontrada. Entre em contato com o suporte."
 	}
 
 	text = strings.ToLower(strings.TrimSpace(text))
-	println("4. texto normalizado:", text)
 
 	// 🔹 sessão
 	session, err := repository.GetSession(userID)
-	println("5. voltou de GetSession")
 
 	if err != nil || session.Phone == "" {
 		session = model.Session{
@@ -41,9 +37,7 @@ func ProcessMessage(userID, text string) string {
 		}
 	}
 
-	println("6. antes do ParseMessage")
 	aiData := ai.ParseMessage(text)
-	println("7. depois do ParseMessage")
 
 	if session.State == model.StateIdle {
 		enrichSessionFromNaturalText(&session, clientID, text, aiData)
@@ -63,18 +57,13 @@ func ProcessMessage(userID, text string) string {
 		return "Fluxo reiniciado ✅\nVocê pode agendar, listar, remarcar ou cancelar."
 	}
 
-	println("8. antes do Handle. state=", session.State, "name=", session.Name, "service=", session.Service, "date=", session.Date, "time=", session.Time)
-
 	flow := chatbot.NewFlow()
 	newSession, response := flow.Handle(&session, text)
-	println("9. depois do Handle:", response)
 
 	if err := repository.SaveSession(*newSession); err != nil {
-		println("10. erro ao salvar sessão")
 		fmt.Println("Erro ao salvar sessão:", err)
 	}
 
-	println("11. fim do ProcessMessage")
 	return response
 }
 
