@@ -560,18 +560,19 @@ func (f *Flow) handleChooseAppointment(session *model.Session, text string) (*mo
 }
 
 func (f *Flow) handleChooseAction(session *model.Session, text string) (*model.Session, string) {
+	action := detectManageAction(text)
 
-	if text == "1" {
+	switch action {
+	case "reschedule":
 		session.State = model.StateRescheduleTime
 		return session, "Digite o novo horário desejado 😊"
-	}
 
-	if text == "2" {
+	case "cancel":
 		session.State = model.StateCancelConfirm
-		return session, "Deseja cancelar? (sim/não)"
+		return session, "Tem certeza que deseja cancelar este agendamento? 😊\nResponda com sim ou não."
 	}
 
-	return session, "Escolha 1 para remarcar ou 2 para cancelar"
+	return session, "Não entendi o que você deseja fazer 😊\nVocê pode responder com remarcar ou cancelar."
 }
 
 func (f *Flow) handleRescheduleTime(session *model.Session, text string) (*model.Session, string) {
@@ -597,11 +598,9 @@ func (f *Flow) handleRescheduleTime(session *model.Session, text string) (*model
 }
 
 func (f *Flow) handleCancel(session *model.Session, text string) (*model.Session, string) {
-
 	intent := AnalyzeIntent(text)
 
 	if intent.IsPositive {
-
 		err := f.appointments.CancelAppointment(
 			session.SelectedAppointmentID,
 			session.ClientID,
@@ -613,10 +612,15 @@ func (f *Flow) handleCancel(session *model.Session, text string) (*model.Session
 		}
 
 		session.State = model.StateIdle
+		session.SelectedAppointmentID = 0
 		return session, "❌ Agendamento cancelado com sucesso!"
 	}
 
-	session.State = model.StateIdle
+	if intent.IsNegative {
+		session.State = model.StateChooseAction
+		return session, "Tudo bem 😊 O agendamento foi mantido.\n\nO que deseja fazer?\n\n1 - Remarcar\n2 - Cancelar"
+	}
+
 	return session, "Não entendi sua resposta 😊\nResponda com sim para cancelar ou não para continuar com seu agendamento."
 }
 
@@ -786,4 +790,32 @@ func extractAppointmentSelection(text string) int {
 	}
 
 	return n
+}
+
+func detectManageAction(text string) string {
+	text = strings.ToLower(strings.TrimSpace(text))
+	text = strings.Trim(text, ".,!?;:")
+
+	switch {
+	case text == "1":
+		return "reschedule"
+	case text == "2":
+		return "cancel"
+
+	case strings.Contains(text, "quero remarcar"),
+		strings.Contains(text, "remarcar"),
+		strings.Contains(text, "reagendar"),
+		strings.Contains(text, "trocar horario"),
+		strings.Contains(text, "trocar horário"),
+		strings.Contains(text, "mudar horario"),
+		strings.Contains(text, "mudar horário"):
+		return "reschedule"
+
+	case strings.Contains(text, "quero cancelar"),
+		strings.Contains(text, "cancelar"),
+		strings.Contains(text, "desmarcar"):
+		return "cancel"
+	}
+
+	return ""
 }
