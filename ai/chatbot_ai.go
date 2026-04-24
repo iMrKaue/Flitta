@@ -53,7 +53,7 @@ func ParseMessage(message string) AIData {
 	// 	data.Time = "18:00"
 	// }
 
-	return data
+	return data 
 }
 
 func contains(msg string, words ...string) bool {

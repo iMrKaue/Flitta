@@ -10,6 +10,7 @@ const (
 	StateChooseAppointment State = "choose_appointments"
 	StateChooseAction      State = "choose_action"
 	StateRescheduleTime    State = "reschedule_time"
+	StateConfirmReschedule State = "confirm_reschedule"
 	StateCancelConfirm     State = "cancel_confirm"
 
 	//chatbot

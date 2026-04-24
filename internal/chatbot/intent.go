@@ -61,7 +61,7 @@ func AnalyzeIntent(text string) IntentResult {
 
 	if utils.ContainsAny(t,
 		"sim", "s", "ok", "okay", "pode ser", "fechado", "confirmo",
-		"claro", "isso mesmo", "beleza", "combinado", "esse mesmo", "pode",
+		"claro", "isso mesmo", "beleza", "combinado", "esse mesmo", "pode", 
 	) {
 		result.IsPositive = true
 	}

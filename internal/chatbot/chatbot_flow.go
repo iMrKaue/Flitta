@@ -50,6 +50,9 @@ func (f *Flow) Handle(session *model.Session, text string) (*model.Session, stri
 	case model.StateRescheduleTime:
 		return f.handleRescheduleTime(session, text)
 
+	case model.StateConfirmReschedule:
+		return f.handleConfirmReschedule(session, text)
+
 	case model.StateCancelConfirm:
 		return f.handleCancel(session, text)
 
@@ -579,22 +582,82 @@ func (f *Flow) handleRescheduleTime(session *model.Session, text string) (*model
 
 	if session.SelectedAppointmentID == 0 {
 		session.State = model.StateIdle
+		session.SuggestedTime = ""
 		return session, "Erro ao identificar agendamento. Tente novamente 🙏"
 	}
 
-	err := f.appointments.RescheduleAppointmentByID(
-		session.SelectedAppointmentID,
-		session.Phone,
-		text,
-	)
+	text = strings.TrimSpace(strings.ToLower(text))
 
-	if err != nil {
-		return session, "Não foi possível remarcar 😢\nTente outro horário."
+	if normalized := utils.NormalizeHour(text); normalized != "" {
+		text = normalized
+	} else {
+		text = strings.ReplaceAll(text, "às", "")
+		text = strings.ReplaceAll(text, "h", "")
+		text = strings.TrimSpace(text)
+
+		if len(text) == 2 {
+			text = text + ":00"
+		}
+
+		if len(text) == 3 {
+			text = text[:1] + ":" + text[1:]
+		}
 	}
 
-	session.State = model.StateIdle
+	if text == "" {
+		return session, "Não entendi o horário 😊\nDigite um horário válido, por exemplo: 14:30."
+	}
 
-	return session, "🔄 Agendamento atualizado com sucesso!"
+	session.SuggestedTime = text
+	session.State = model.StateConfirmReschedule
+
+	return session, "Confirma a remarcação do seu agendamento para " + text + "? 😊\nResponda com sim ou não."
+}
+
+func (f *Flow) handleConfirmReschedule(session *model.Session, text string) (*model.Session, string) {
+	intent := AnalyzeIntent(text)
+
+	if intent.IsPositive {
+		if session.SelectedAppointmentID == 0 {
+			session.State = model.StateIdle
+			session.SuggestedTime = ""
+			return session, "Erro ao identificar agendamento. Tente novamente 🙏"
+		}
+
+		if session.SuggestedTime == "" {
+			session.State = model.StateRescheduleTime
+			return session, "Não encontrei o novo horário informado 😅\nDigite novamente o horário desejado."
+		}
+
+		newTime := session.SuggestedTime
+
+		err := f.appointments.RescheduleAppointmentByID(
+			session.SelectedAppointmentID,
+			session.Phone,
+			newTime,
+		)
+
+		if err != nil {
+			session.State = model.StateRescheduleTime
+			session.SuggestedTime = ""
+			return session, "Não foi possível remarcar 😢\nTente outro horário."
+		}
+
+		session.State = model.StateIdle
+		session.SelectedAppointmentID = 0
+		session.SuggestedTime = ""
+
+		return session, "🔄 Agendamento remarcado com sucesso para " + newTime + "!"
+	}
+
+	if intent.IsNegative {
+		session.State = model.StateChooseAction
+		session.SuggestedTime = ""
+
+		return session, "Tudo bem 😊 A remarcação não foi feita.\n\nO que deseja fazer?\n\n1 - Remarcar\n2 - Cancelar"
+	}
+
+	return session, "Não entendi sua resposta 😊\nResponda com sim para remarcar ou não para voltar."
 }
 
 func (f *Flow) handleCancel(session *model.Session, text string) (*model.Session, string) {
