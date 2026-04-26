@@ -159,6 +159,74 @@ func (u *AppointmentUsecase) CanRescheduleAppointmentByID(
 	return nil
 }
 
+func (u *AppointmentUsecase) GetAvailableSlotsForRescheduleByID(
+	id int,
+	customerPhone string,
+) ([]string, string, error) {
+
+	phone := utils.NormalizeCustomerPhone(customerPhone)
+
+	date, clientID, svc, err := repository.GetAppointmentForReschedule(id, phone)
+	if err != nil {
+		return nil, "", fmt.Errorf("agendamento não encontrado")
+	}
+
+	duration := repository.GetServiceDuration(clientID, svc)
+
+	rows, err := repository.ListAppointmentSlotsForDateExcept(clientID, date, id)
+	if err != nil {
+		return nil, "", err
+	}
+
+	booked := bookedSlotMapFromRows(clientID, rows)
+
+	_, workingEnd, _, err := repository.GetWorkingHours(clientID)
+	if err != nil {
+		return nil, "", fmt.Errorf("horário de funcionamento não configurado")
+	}
+
+	layout := "15:04"
+
+	endWork, err := time.Parse(layout, workingEnd)
+	if err != nil {
+		return nil, "", fmt.Errorf("horário de fechamento inválido")
+	}
+
+	slots := generateTimeSlots(clientID)
+
+	var available []string
+
+	slotsNeeded := int(math.Ceil(float64(duration) / 30.0))
+
+	for _, s := range slots {
+		start, err := time.Parse(layout, s)
+		if err != nil {
+			continue
+		}
+
+		if start.Add(time.Duration(duration) * time.Minute).After(endWork) {
+			continue
+		}
+
+		hasConflict := false
+
+		for i := 0; i < slotsNeeded; i++ {
+			slot := start.Add(time.Duration(i*30) * time.Minute)
+
+			if booked[slot.Format("15:04")] {
+				hasConflict = true
+				break
+			}
+		}
+
+		if !hasConflict {
+			available = append(available, s)
+		}
+	}
+
+	return available, date, nil
+}
+
 func (u *AppointmentUsecase) RescheduleAppointmentByID(
 	id int,
 	customerPhone string,

@@ -617,7 +617,34 @@ func (f *Flow) handleRescheduleTime(session *model.Session, text string) (*model
 	if err != nil {
 		session.SuggestedTime = ""
 
-		return session, "Esse horário não está disponível 😕\nDigite outro horário."
+		slots, date, slotsErr := f.appointments.GetAvailableSlotsForRescheduleByID(
+			session.SelectedAppointmentID,
+			session.Phone,
+		)
+
+		if slotsErr != nil || len(slots) == 0 {
+			return session, "Esse horário não está disponível 😕\nNão encontrei outros horários livres para esse dia.\nDigite outro horário ou tente outro dia."
+		}
+
+		response := "Esse horário não está disponível 😕\n\n"
+		response += "Horários disponíveis para " + date + ":\n\n"
+
+		limit := len(slots)
+		if limit > 8 {
+			limit = 8
+		}
+
+		for i := 0; i < limit; i++ {
+			if i < 3 {
+				response += "⭐ " + slots[i] + "\n"
+			} else {
+				response += "• " + slots[i] + "\n"
+			}
+		}
+
+		response += "\nDigite outro horário 😊"
+
+		return session, response
 	}
 
 	session.SuggestedTime = text
