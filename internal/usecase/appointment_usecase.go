@@ -7,6 +7,7 @@ import (
 	"flitta/internal/utils"
 	"fmt"
 	"math"
+	"strings"
 	"time"
 )
 
@@ -85,7 +86,7 @@ func (u *AppointmentUsecase) GetBookedTimes(clientID int, date string) map[strin
 	return m
 }
 
-func (u *AppointmentUsecase) RescheduleAppointmentByID(
+func (u *AppointmentUsecase) CanRescheduleAppointmentByID(
 	id int,
 	customerPhone string,
 	newTime string,
@@ -100,17 +101,50 @@ func (u *AppointmentUsecase) RescheduleAppointmentByID(
 
 	duration := repository.GetServiceDuration(clientID, svc)
 
-	rows, err := repository.ListAppointmentSlotsForDateExcept(clientID, date, id)
-	if err != nil {
-		return err
-	}
-	booked := bookedSlotMapFromRows(clientID, rows)
-
 	layout := "15:04"
+
 	start, err := time.Parse(layout, newTime)
 	if err != nil {
 		return fmt.Errorf("horário inválido")
 	}
+
+	workingStart, workingEnd, _, err := repository.GetWorkingHours(clientID)
+	if err != nil {
+		return fmt.Errorf("horário de funcionamento não configurado")
+	}
+
+	startWork, err := time.Parse(layout, workingStart)
+	if err != nil {
+		return fmt.Errorf("horário de abertura inválido")
+	}
+
+	endWork, err := time.Parse(layout, workingEnd)
+	if err != nil {
+		return fmt.Errorf("horário de fechamento inválido")
+	}
+
+	if start.Before(startWork) || start.Add(time.Duration(duration)*time.Minute).After(endWork) {
+		return fmt.Errorf("horário fora do funcionamento")
+	}
+
+	validStart := false
+	for _, slot := range generateTimeSlots(clientID) {
+		if strings.TrimSpace(slot) == strings.TrimSpace(newTime) {
+			validStart = true
+			break
+		}
+	}
+
+	if !validStart {
+		return fmt.Errorf("horário inválido")
+	}
+
+	rows, err := repository.ListAppointmentSlotsForDateExcept(clientID, date, id)
+	if err != nil {
+		return err
+	}
+
+	booked := bookedSlotMapFromRows(clientID, rows)
 
 	slots := int(math.Ceil(float64(duration) / 30.0))
 
@@ -120,6 +154,19 @@ func (u *AppointmentUsecase) RescheduleAppointmentByID(
 		if booked[slot.Format("15:04")] {
 			return fmt.Errorf("horário já ocupado")
 		}
+	}
+
+	return nil
+}
+
+func (u *AppointmentUsecase) RescheduleAppointmentByID(
+	id int,
+	customerPhone string,
+	newTime string,
+) error {
+
+	if err := u.CanRescheduleAppointmentByID(id, customerPhone, newTime); err != nil {
+		return err
 	}
 
 	return repository.UpdateAppointmentTimeByID(id, newTime)

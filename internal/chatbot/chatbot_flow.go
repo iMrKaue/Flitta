@@ -608,6 +608,18 @@ func (f *Flow) handleRescheduleTime(session *model.Session, text string) (*model
 		return session, "Não entendi o horário 😊\nDigite um horário válido, por exemplo: 14:30."
 	}
 
+	err := f.appointments.CanRescheduleAppointmentByID(
+		session.SelectedAppointmentID,
+		session.Phone,
+		text,
+	)
+
+	if err != nil {
+		session.SuggestedTime = ""
+
+		return session, "Esse horário não está disponível 😕\nDigite outro horário."
+	}
+
 	session.SuggestedTime = text
 	session.State = model.StateConfirmReschedule
 
