@@ -533,7 +533,7 @@ func (f *Flow) listAppointments(session *model.Session) string {
 	)
 
 	if err != nil || len(list) == 0 {
-		return "Você não tem agendamentos ainda 😊"
+		return "Você não tem agendamentos futuros 😊"
 	}
 
 	return buildAppointmentsList(list)
