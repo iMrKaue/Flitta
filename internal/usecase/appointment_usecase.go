@@ -189,8 +189,10 @@ func (u *AppointmentUsecase) GetAppointmentsByCustomerPhone(
 	rows, err := database.DB.Query(`
 		SELECT id, name, service, date, time
 		FROM appointments
-		WHERE client_id = $1 AND customer_phone = $2
-		ORDER BY date DESC, time DESC
+		WHERE client_id = $1
+		  AND customer_phone = $2
+		  AND date::date >= CURRENT_DATE
+		ORDER BY date ASC, time ASC
 	`, clientID, phone)
 
 	if err != nil {
