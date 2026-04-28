@@ -11,10 +11,11 @@ import (
 )
 
 type RegisterRequest struct {
-	Name     string `json:"name"`
-	Phone    string `json:"phone"`
-	Email    string `json:"email"`
-	Password string `json:"password"`
+	Name    	 string `json:"name"`
+	Phone    	 string `json:"phone"`
+	Email    	 string `json:"email"`
+	Password 	 string `json:"password"`
+	BusinessType string `json:"business_type"`
 }
 
 type LoginRequest struct {
@@ -36,6 +37,7 @@ func RegisterHandler(w http.ResponseWriter, r *http.Request) {
 		req.Phone,
 		req.Email,
 		req.Password,
+		req.BusinessType,
 	)
 
 	if err != nil {
