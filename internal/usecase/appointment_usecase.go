@@ -7,6 +7,7 @@ import (
 	"flitta/internal/utils"
 	"fmt"
 	"math"
+	"strings"
 	"time"
 )
 
@@ -85,7 +86,7 @@ func (u *AppointmentUsecase) GetBookedTimes(clientID int, date string) map[strin
 	return m
 }
 
-func (u *AppointmentUsecase) RescheduleAppointmentByID(
+func (u *AppointmentUsecase) CanRescheduleAppointmentByID(
 	id int,
 	customerPhone string,
 	newTime string,
@@ -100,17 +101,50 @@ func (u *AppointmentUsecase) RescheduleAppointmentByID(
 
 	duration := repository.GetServiceDuration(clientID, svc)
 
-	rows, err := repository.ListAppointmentSlotsForDateExcept(clientID, date, id)
-	if err != nil {
-		return err
-	}
-	booked := bookedSlotMapFromRows(clientID, rows)
-
 	layout := "15:04"
+
 	start, err := time.Parse(layout, newTime)
 	if err != nil {
 		return fmt.Errorf("horário inválido")
 	}
+
+	workingStart, workingEnd, _, err := repository.GetWorkingHours(clientID)
+	if err != nil {
+		return fmt.Errorf("horário de funcionamento não configurado")
+	}
+
+	startWork, err := time.Parse(layout, workingStart)
+	if err != nil {
+		return fmt.Errorf("horário de abertura inválido")
+	}
+
+	endWork, err := time.Parse(layout, workingEnd)
+	if err != nil {
+		return fmt.Errorf("horário de fechamento inválido")
+	}
+
+	if start.Before(startWork) || start.Add(time.Duration(duration)*time.Minute).After(endWork) {
+		return fmt.Errorf("horário fora do funcionamento")
+	}
+
+	validStart := false
+	for _, slot := range generateTimeSlots(clientID) {
+		if strings.TrimSpace(slot) == strings.TrimSpace(newTime) {
+			validStart = true
+			break
+		}
+	}
+
+	if !validStart {
+		return fmt.Errorf("horário inválido")
+	}
+
+	rows, err := repository.ListAppointmentSlotsForDateExcept(clientID, date, id)
+	if err != nil {
+		return err
+	}
+
+	booked := bookedSlotMapFromRows(clientID, rows)
 
 	slots := int(math.Ceil(float64(duration) / 30.0))
 
@@ -120,6 +154,87 @@ func (u *AppointmentUsecase) RescheduleAppointmentByID(
 		if booked[slot.Format("15:04")] {
 			return fmt.Errorf("horário já ocupado")
 		}
+	}
+
+	return nil
+}
+
+func (u *AppointmentUsecase) GetAvailableSlotsForRescheduleByID(
+	id int,
+	customerPhone string,
+) ([]string, string, error) {
+
+	phone := utils.NormalizeCustomerPhone(customerPhone)
+
+	date, clientID, svc, err := repository.GetAppointmentForReschedule(id, phone)
+	if err != nil {
+		return nil, "", fmt.Errorf("agendamento não encontrado")
+	}
+
+	duration := repository.GetServiceDuration(clientID, svc)
+
+	rows, err := repository.ListAppointmentSlotsForDateExcept(clientID, date, id)
+	if err != nil {
+		return nil, "", err
+	}
+
+	booked := bookedSlotMapFromRows(clientID, rows)
+
+	_, workingEnd, _, err := repository.GetWorkingHours(clientID)
+	if err != nil {
+		return nil, "", fmt.Errorf("horário de funcionamento não configurado")
+	}
+
+	layout := "15:04"
+
+	endWork, err := time.Parse(layout, workingEnd)
+	if err != nil {
+		return nil, "", fmt.Errorf("horário de fechamento inválido")
+	}
+
+	slots := generateTimeSlots(clientID)
+
+	var available []string
+
+	slotsNeeded := int(math.Ceil(float64(duration) / 30.0))
+
+	for _, s := range slots {
+		start, err := time.Parse(layout, s)
+		if err != nil {
+			continue
+		}
+
+		if start.Add(time.Duration(duration) * time.Minute).After(endWork) {
+			continue
+		}
+
+		hasConflict := false
+
+		for i := 0; i < slotsNeeded; i++ {
+			slot := start.Add(time.Duration(i*30) * time.Minute)
+
+			if booked[slot.Format("15:04")] {
+				hasConflict = true
+				break
+			}
+		}
+
+		if !hasConflict {
+			available = append(available, s)
+		}
+	}
+
+	return available, date, nil
+}
+
+func (u *AppointmentUsecase) RescheduleAppointmentByID(
+	id int,
+	customerPhone string,
+	newTime string,
+) error {
+
+	if err := u.CanRescheduleAppointmentByID(id, customerPhone, newTime); err != nil {
+		return err
 	}
 
 	return repository.UpdateAppointmentTimeByID(id, newTime)
@@ -189,8 +304,10 @@ func (u *AppointmentUsecase) GetAppointmentsByCustomerPhone(
 	rows, err := database.DB.Query(`
 		SELECT id, name, service, date, time
 		FROM appointments
-		WHERE client_id = $1 AND customer_phone = $2
-		ORDER BY date DESC, time DESC
+		WHERE client_id = $1
+		  AND customer_phone = $2
+		  AND date::date >= CURRENT_DATE
+		ORDER BY date ASC, time ASC
 	`, clientID, phone)
 
 	if err != nil {

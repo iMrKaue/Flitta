@@ -13,3 +13,19 @@ func CreateClient(name, phone, email, password, businessType string) (int, error
 
 	return id, err
 }
+
+func GetBusinessTypeByClientID(clientID int) string {
+	var businessType string
+
+	err := database.DB.QueryRow(`
+		SELECT business_type
+		FROM clients
+		WHERE id = $1
+	`, clientID).Scan(&businessType)
+
+	if err != nil || businessType == "" {
+		return "other"
+	}
+
+	return businessType
+}

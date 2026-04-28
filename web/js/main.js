@@ -25,7 +25,7 @@ async function createService() {
     const name = document.getElementById("newService").value;
 
     if (!name) {
-        alert("Digite um nome");
+        alert("Digite o nome do serviço ou atendimento");
         return;
     }
 
@@ -52,7 +52,7 @@ async function setHours() {
     const interval = parseInt(document.getElementById("interval").value);
 
     if (!start || !end || !interval) {
-        alert("Preencha tudo");
+        alert("Preencha os horários de funcionamento");
         return;
     }
 
@@ -65,7 +65,7 @@ async function setHours() {
         })
     });
 
-    alert("Horários salvos com sucesso");
+    alert("Horários de funcionamento salvos com sucesso");
 }
 
 async function loadAppointments() {
