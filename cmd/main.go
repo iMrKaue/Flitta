@@ -13,7 +13,7 @@ import (
 
 func main() {
 
-	err := godotenv.Load("../flitta-backend/.env")
+	err := godotenv.Load(".env")
 	if err != nil {
 		log.Println("Aviso: .env não carregado")
 	} else {
