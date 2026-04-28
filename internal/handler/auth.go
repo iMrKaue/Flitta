@@ -55,8 +55,8 @@ func RegisterHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// 🔹 cria serviços padrão
-	defaultServices := []string{"Corte", "Escova", "Progressiva"}
+	// cria serviços padrão conforme o tipo de negócio
+	defaultServices := getDefaultServicesByBusinessType(req.BusinessType)
 
 	for _, s := range defaultServices {
 		if err := repository.CreateService(clientID, s); err != nil {
@@ -104,4 +104,23 @@ func LoginHandler(w http.ResponseWriter, r *http.Request) {
 	json.NewEncoder(w).Encode(map[string]string{
 		"token": token,
 	})
+}
+
+func getDefaultServicesByBusinessType(businessType string) []string {
+	businessType = service.NormalizeBusinessType(businessType)
+
+	switch businessType {
+	case "beauty":
+		return []string{"Corte", "Escova", "Progressiva"}
+	case "barber":
+		return []string{"Corte", "Barba", "Sobrancelha"}
+	case "clinic": 
+		return []string{"Consulta", "Retorno", "Avaliação"}
+	case "gym":
+		return []string{"Avaliação física", "Aula experimental", "Personal"}
+	case "petshop":
+		return []string{"Banho", "Tosa", "Consulta"}
+	default:
+		return []string{"Atendimento"}
+	}
 }
