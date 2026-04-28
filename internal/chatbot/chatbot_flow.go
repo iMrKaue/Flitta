@@ -99,7 +99,7 @@ func (f *Flow) handleStart(session *model.Session, text string) (*model.Session,
 		return session,
 			"📋 Confirmação do seu horário:\n\n" +
 				"👤 " + session.Name + "\n" +
-				"💇 " + session.Service + "\n" +
+				"📌 " + session.Service + "\n" +
 				"📅 " + session.Date + "\n" +
 				"🕒 " + session.Time + "\n\nConfirmar? (sim/não)"
 	}
@@ -373,7 +373,7 @@ func (f *Flow) handleTime(session *model.Session, text string) (*model.Session, 
 
 		if len(filtered) == 0 {
 			if intent.Period == "noite" {
-				return session, "Não encontrei horários à noite nesse dia 😊 O salão atende até o fim da tarde."
+				return session, "Não encontrei horários à noite nesse dia 😊 O estabelecimento atende até o fim da tarde."
 			}
 			return session, fmt.Sprintf("Não encontrei horários %s nesse dia 😊", periodLabel(intent.Period))
 		}
@@ -508,7 +508,7 @@ func (f *Flow) handleConfirm(session *model.Session, text string) (*model.Sessio
 
 		return session,
 			fmt.Sprintf(
-				"✅ Agendamento confirmado!\n\n👤 %s\n💇 %s\n📅 %s\n🕒 %s\n\nTe esperamos no horário combinado 😊",
+				"✅ Agendamento confirmado!\n\n👤 %s\n📌 %s\n📅 %s\n🕒 %s\n\nTe esperamos no horário combinado 😊",
 				name, service, date, timeValue,
 			)
 	}
@@ -850,7 +850,7 @@ func buildServiceList(clientID int, withIntro bool) string {
 func buildConfirmationMessage(session *model.Session) string {
 	return "📋 Confirmação do seu horário:\n\n" +
 		"👤 " + session.Name + "\n" +
-		"💇 " + session.Service + "\n" +
+		"📌 " + session.Service + "\n" +
 		"📅 " + session.Date + "\n" +
 		"🕒 " + session.Time + "\n\nConfirmar? (sim/não)"
 }
@@ -865,7 +865,7 @@ func buildAppointmentsList(appointments []model.Appointment) string {
 
 	for i, a := range appointments {
 		response += fmt.Sprintf(
-			"%d - 💇 %s\n📅 %s às %s\n\n",
+			"%d - 📌 %s\n📅 %s às %s\n\n",
 			i+1,
 			a.Service,
 			a.Date,

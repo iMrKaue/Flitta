@@ -1,6 +1,7 @@
 package model
 
-// SalonService é um serviço oferecido pelo salão (catálogo), não o pacote internal/service.
+// SalonService representa um serviço ou atendimento cadastrado pelo estabelecimento.
+// O nome será refatorado futuramente para Service.
 type SalonService struct {
 	ID   int    `json:"id"`
 	Name string `json:"name"`
