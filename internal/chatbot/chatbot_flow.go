@@ -139,6 +139,12 @@ func (f *Flow) handleName(session *model.Session, text string) (*model.Session, 
 	session.Name = utils.Capitalize(text)
 
 	if session.Service == "" {
+		services := repository.GetServices(session.ClientID)
+		if len(services) == 0 {
+			session.State = model.StateIdle
+			return session, "Este estabelecimento ainda não possui serviços cadastrados 😊\nEntre em contato com o responsável ou tente novamente mais tarde."
+		}
+
 		session.State = model.StateService
 		return session, buildServiceList(session.ClientID, true)
 	}
@@ -837,6 +843,10 @@ func askName(session *model.Session) (*model.Session, string) {
 func buildServiceList(clientID int, withIntro bool) string {
 	services := repository.GetServices(clientID)
 	businessType := repository.GetBusinessTypeByClientID(clientID)
+
+	if len(services) == 0 {
+		return "Este estabelecimento ainda não possui serviços cadastrados 😊\nEntre em contato com o responsável ou tente novamente mais tarde."
+	}
 
 	response := ""
 	if withIntro {
