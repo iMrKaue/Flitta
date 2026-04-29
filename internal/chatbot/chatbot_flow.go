@@ -63,6 +63,7 @@ func (f *Flow) Handle(session *model.Session, text string) (*model.Session, stri
 }
 
 func (f *Flow) handleStart(session *model.Session, text string) (*model.Session, string) {
+	businessType := repository.GetBusinessTypeByClientID(session.ClientID)
 
 	if session.Name != "" || session.Service != "" || session.Date != "" || session.Time != "" {
 
@@ -73,7 +74,7 @@ func (f *Flow) handleStart(session *model.Session, text string) (*model.Session,
 
 		if session.Date == "" {
 			session.State = model.StateDate
-			return session, "Qual dia você deseja?"
+			return session, utils.AskDateMessageByBusinessType(businessType)
 		}
 
 		if session.Time == "" {
@@ -109,12 +110,12 @@ func (f *Flow) handleStart(session *model.Session, text string) (*model.Session,
 	switch intent {
 
 	case IntentGreeting:
-		session.State = model.StateName 
-		response += "Escolha um serviço abaixo:\n"
+		session.State = model.StateName
+		return session, utils.WelcomeMessageByBusinessType(businessType)
 
 	case IntentSchedule:
-		session.State = model.StateName 
-		return session, "Perfeito 😊 Vamos agendar seu horário.\nQual é o seu nome?"
+		session.State = model.StateName
+		return session, utils.WelcomeMessageByBusinessType(businessType)
 
 	case IntentList:
 		session.State = model.StateChooseAppointment
@@ -143,8 +144,9 @@ func (f *Flow) handleName(session *model.Session, text string) (*model.Session, 
 	}
 
 	if session.Date == "" {
+		businessType := repository.GetBusinessTypeByClientID(session.ClientID)
 		session.State = model.StateDate
-		return session, "Qual dia você deseja? 😊"
+		return session, utils.AskDateMessageByBusinessType(businessType)
 	}
 
 	if session.Time == "" {
@@ -156,6 +158,7 @@ func (f *Flow) handleName(session *model.Session, text string) (*model.Session, 
 
 func (f *Flow) handleService(session *model.Session, text string) (*model.Session, string) {
 	services := repository.GetServices(session.ClientID)
+	businessType := repository.GetBusinessTypeByClientID(session.ClientID)
 
 	index, err := strconv.Atoi(text)
 	if err == nil && index >= 1 && index <= len(services) {
@@ -163,7 +166,7 @@ func (f *Flow) handleService(session *model.Session, text string) (*model.Sessio
 
 		if session.Date == "" {
 			session.State = model.StateDate
-			return session, "Qual dia você deseja? 😊"
+			return session, utils.AskDateMessageByBusinessType(businessType)
 		}
 
 		if session.Time == "" {
@@ -179,7 +182,7 @@ func (f *Flow) handleService(session *model.Session, text string) (*model.Sessio
 
 			if session.Date == "" {
 				session.State = model.StateDate
-				return session, "Qual dia você deseja? 😊"
+				return session, utils.AskDateMessageByBusinessType(businessType)
 			}
 
 			if session.Time == "" {
@@ -190,7 +193,7 @@ func (f *Flow) handleService(session *model.Session, text string) (*model.Sessio
 		}
 	}
 
-	response := "Não entendi qual serviço você deseja 😅\nEscolha um dos serviços abaixo:\n"
+	response := utils.AskDateMessageByBusinessType(businessType)
 	for i, s := range services {
 		response += fmt.Sprintf("%d - %s\n", i+1, s.Name)
 	}
@@ -833,12 +836,14 @@ func askName(session *model.Session) (*model.Session, string) {
 
 func buildServiceList(clientID int, withIntro bool) string {
 	services := repository.GetServices(clientID)
+	businessType := repository.GetBusinessTypeByClientID(clientID)
 
 	response := ""
 	if withIntro {
 		response = "Perfeito 😊\n"
 	}
-	response += "Escolha um serviço abaixo:\n"
+
+	response += utils.ChooseServiceMessageByBusinessType(businessType) + "\n"
 
 	for i, s := range services {
 		response += fmt.Sprintf("%d - %s\n", i+1, s.Name)

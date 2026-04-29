@@ -182,3 +182,76 @@ func nextWeekday(target time.Weekday) time.Time {
 
 	return now.AddDate(0, 0, daysAhead)
 }
+
+func NormalizeBusinessType(value string) string {
+	value = strings.ToLower(strings.TrimSpace(value))
+
+	switch value {
+	case "beauty", "salon", "salao", "salão", "estetica", "estética":
+		return "beauty"
+	case "barber", "barbearia":
+		return "barber"
+	case "clinic", "clinica", "clínica":
+		return "clinic"
+	case "gym", "academia", "personal":
+		return "gym"
+	case "petshop", "per", "pet_shop":
+		return "petshop"
+	case "other", "outro", "":
+		return "other"
+	default:
+		return "other"
+	}
+}
+
+func WelcomeMessageByBusinessType(businessType string) string {
+	switch NormalizeBusinessType(businessType) {
+	case "clinic":
+		return "Olá! Seja bem vindo(a) 😊\nVamos agendar seu procedimento.\n\nQual é o seu nome?"
+	case "gym":
+		return "Olá! Seja bem vindo(a) 😊\nVamos agendar seu atendimento.\n\nQual é o seu nome?"
+	case "petshop":
+		return "Olá! Seja bem vindo(a) 😊\nVamos agendar o serviço do seu pet.\n\nQual é o seu nome?"
+	default:
+		return "Olá! Seja bem vindo(a) 😊\nVamos agendar seu horário.\n\nQual é o seu nome?"
+	}
+}
+
+func ChooseServiceMessageByBusinessType(businessType string) string {
+	switch NormalizeBusinessType(businessType) {
+	case "clinic":
+		return "Escolha um procedimento abaixo:"
+	case "gym":
+		return "Escolha um atendimento abaixo:"
+	case "petshop":
+		return "Escolha um serviço para o pet abaixo:"
+	default:
+		return "Escolha um serviço abaixo:"
+	}
+}
+
+func AskDateMessageByBusinessType(businessType string) string {
+	switch NormalizeBusinessType(businessType) {
+	case "clinic":
+		return "Qual dia você dejesa para o procedimento? 😊"
+	case "gym":
+		return "Qual dia você deseja para o atendimento? 😊"
+	case "petshop":
+		return "Qual dia você deseaja para o serviço do pet? 😊"
+	default:
+		return "Qual dia você deseja? 😊"
+	}
+}
+
+func InvalidServiceMessageByBusinessType(businessType string) string {
+	switch NormalizeBusinessType(businessType) {
+	case "clinic":
+		return "Não entendi qual procedimento você deseja 😅\nEscolha uma das opções abaixo:\n"
+	case "gym":
+		return "Não entendi qual atendimento você deseja 😅\nEscolha uma das opções abaixo:\n"
+	case "petshop":
+		return "Não entendi qual serviço de pet você deseja 😅\nEscolha uma das opções abaixo:\n"
+	default:
+		return "Não entendi qual serviço você deseja 😅\nEscolha uma das opções abaixo:\n"
+	}
+}
