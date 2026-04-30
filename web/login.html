@@ -1,43 +1,67 @@
 <!DOCTYPE html>
-<html>
+<html lang="pt-BR">
 <head>
+  <meta charset="UTF-8">
   <title>Flitta Admin</title>
   <link rel="stylesheet" href="css/style.css">
 </head>
-<body>
+<body class="auth-page">
 
-  <div class="login-container">
-    <h2>Login</h2>
+  <main class="auth-wrapper">
+    <section class="auth-hero">
+      <div class="brand-badge">Flitta</div>
 
-    <input type="email" id="email" placeholder="Email">
-    <input type="password" id="password" placeholder="Senha">
+      <h1>Automatize seus agendamentos pelo WhatsApp</h1>
 
-    <button onclick="login()">Entrar</button>
+      <p>
+        Organize horários, serviços e atendimentos em um painel simples,
+        enquanto seus clientes agendam pelo WhatsApp.
+      </p>
 
-    <p id="error"></p>
+      <div class="hero-points">
+        <span>📅 Agenda inteligente</span>
+        <span>💬 Atendimento automatizado</span>
+        <span>⚙️ Serviços por segmento</span>
+      </div>
+    </section>
 
-    <hr>
+    <section class="auth-cards">
+      <div class="auth-card">
+        <h2>Entrar</h2>
+        <p class="card-subtitle">Acesse o painel do seu estabelecimento.</p>
 
-    <h2>Cadastrar estabelecimento</h2>
+        <input type="email" id="email" placeholder="Email">
+        <input type="password" id="password" placeholder="Senha">
 
-    <input type="text" id="registerName" placeholder="Nome do estabelecimento">
-    <input type="text" id="registerPhone" placeholder="WhatsApp do estabelecimento">
-    <input type="email" id="registerEmail" placeholder="Email">
-    <input type="password" id="registerPassword" placeholder="Senha">
+        <button class="primary-button" onclick="login()">Entrar</button>
 
-    <select id="businessType">
-      <option value="beauty">Salão / Estética</option>
-      <option value="barber">Barbearia</option>
-      <option value="clinic">Clínica</option>
-      <option value="gym">Academia / Personal</option>
-      <option value="petshop">Petshop</option>
-      <option value="other">Outro</option>
-    </select>
+        <p id="error" class="form-message"></p>
+      </div>
 
-    <button onclick="register()">Cadastrar</button>
+      <div class="auth-card">
+        <h2>Cadastrar estabelecimento</h2>
+        <p class="card-subtitle">Crie uma conta e escolha o tipo de negócio.</p>
 
-    <p id="registerError"></p>
-  </div>
+        <input type="text" id="registerName" placeholder="Nome do estabelecimento">
+        <input type="text" id="registerPhone" placeholder="WhatsApp do estabelecimento">
+        <input type="email" id="registerEmail" placeholder="Email">
+        <input type="password" id="registerPassword" placeholder="Senha">
+
+        <select id="businessType">
+          <option value="beauty">Salão / Estética</option>
+          <option value="barber">Barbearia</option>
+          <option value="clinic">Clínica</option>
+          <option value="gym">Academia / Personal</option>
+          <option value="petshop">Petshop</option>
+          <option value="other">Outro</option>
+        </select>
+
+        <button class="primary-button" onclick="register()">Cadastrar</button>
+
+        <p id="registerError" class="form-message"></p>
+      </div>
+    </section>
+  </main>
 
   <script src="js/auth.js"></script>
 </body>
