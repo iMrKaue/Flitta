@@ -15,6 +15,28 @@
     <button onclick="login()">Entrar</button>
 
     <p id="error"></p>
+
+    <hr>
+
+    <h2>Cadastrar estabelecimento</h2>
+
+    <input type="text" id="registerName" placeholder="Nome do estabelecimento">
+    <input type="text" id="registerPhone" placeholder="WhatsApp do estabelecimento">
+    <input type="email" id="registerEmail" placeholder="Email">
+    <input type="password" id="registerPassword" placeholder="Senha">
+
+    <select id="businessType">
+      <option value="beauty">Salão / Estética</option>
+      <option value="barber">Barbearia</option>
+      <option value="clinic">Clínica</option>
+      <option value="gym">Academia / Personal</option>
+      <option value="petshop">Petshop</option>
+      <option value="other">Outro</option>
+    </select>
+
+    <button onclick="register()">Cadastrar</button>
+
+    <p id="registerError"></p>
   </div>
 
   <script src="js/auth.js"></script>
