@@ -209,3 +209,134 @@ li {
     font-size: 36px;
   }
 }
+
+/* =========================
+   Dashboard polish
+========================= */
+
+.dashboard-container {
+  max-width: 1040px;
+}
+
+.dashboard-header {
+  background: #ffffff;
+  padding: 22px 24px;
+  border-radius: 18px;
+  box-shadow: 0 10px 30px rgba(15, 23, 42, 0.06);
+}
+
+.dashboard-header h1 {
+  color: #111827;
+}
+
+.dashboard-header p {
+  margin: 6px 0 0;
+  color: #6b7280;
+}
+
+.summary-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 18px;
+  margin-bottom: 20px;
+}
+
+.summary-card {
+  background: #ffffff;
+  border-radius: 18px;
+  padding: 18px;
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  box-shadow: 0 10px 30px rgba(15, 23, 42, 0.06);
+}
+
+.summary-card span {
+  font-size: 28px;
+}
+
+.summary-card strong {
+  display: block;
+  font-size: 24px;
+  color: #111827;
+}
+
+.summary-card small {
+  color: #6b7280;
+}
+
+.section-title {
+  display: flex;
+  justify-content: space-between;
+  margin-bottom: 14px;
+}
+
+.section-title h2 {
+  margin: 0;
+}
+
+.section-title p {
+  margin: 6px 0 0;
+  color: #6b7280;
+  font-size: 14px;
+}
+
+.list-item,
+.appointment-item {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  background: #f9fafb;
+  border: 1px solid #eef0f3;
+  border-radius: 12px;
+  padding: 12px;
+  margin-bottom: 10px;
+}
+
+.appointment-item div {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.appointment-item span {
+  color: #6b7280;
+  font-size: 14px;
+}
+
+.danger-button {
+  background: #ef4444;
+}
+
+.danger-button:hover {
+  background: #dc2626;
+}
+
+.empty-state {
+  background: #f9fafb;
+  border: 1px dashed #d1d5db;
+  border-radius: 12px;
+  padding: 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.empty-state strong {
+  color: #111827;
+}
+
+.empty-state span {
+  color: #6b7280;
+  font-size: 14px;
+}
+
+@media (max-width: 800px) {
+  .summary-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .form-incline {
+    flex-direction: column;
+  }
+}
