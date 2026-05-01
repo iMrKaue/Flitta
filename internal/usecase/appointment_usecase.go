@@ -260,14 +260,63 @@ func (u *AppointmentUsecase) CancelAppointment(
 }
 
 func (u *AppointmentUsecase) GetAvailableSlots(clientID int, date string) ([]string, error) {
+	return u.GetAvailableSlotsForService(clientID, date, "")
+}
+
+func (u *AppointmentUsecase) GetAvailableSlotsForService(
+	clientID int,
+	date string,
+	serviceName string,
+) ([]string, error) {
 
 	slots := generateTimeSlots(clientID)
 	booked := u.GetBookedTimes(clientID, date)
 
+	duration := 30
+	if strings.TrimSpace(serviceName) != "" {
+		duration = repository.GetServiceDuration(clientID, serviceName)
+	}
+
+	_, workingEnd, _, err := repository.GetWorkingHours(clientID)
+	if err != nil {
+		return []string{}, fmt.Errorf("horário de funcionamento não configurado")
+	}
+
+	layout := "15:04"
+
+	endWork, err := time.Parse(layout, workingEnd)
+	if err != nil {
+		return []string{}, fmt.Errorf("horário de fechamento inválido")
+	}
+
+	slotsNeeded := int(math.Ceil(float64(duration) / 30.0))
+
 	var available []string
 
 	for _, s := range slots {
-		if !booked[s] {
+		start, err := time.Parse(layout, s)
+		if err != nil {
+			continue
+		}
+
+		serviceEnd := start.Add(time.Duration(duration) * time.Minute)
+
+		if serviceEnd.After(endWork) {
+			continue
+		}
+
+		hasConflict := false
+
+		for i := 0; i < slotsNeeded; i++ {
+			slot := start.Add(time.Duration(i*30) * time.Minute)
+
+			if booked[slot.Format("15:04")] {
+				hasConflict = true
+				break
+			}
+		}
+
+		if !hasConflict {
 			available = append(available, s)
 		}
 	}

@@ -239,7 +239,7 @@ func (f *Flow) presentAvailableSlots(session *model.Session) (*model.Session, st
 
 	session.State = model.StateTime
 
-	slots, _ := f.appointments.GetAvailableSlots(session.ClientID, session.Date)
+	slots, _ := f.appointments.GetAvailableSlotsForService(session.ClientID, session.Date, session.Service)
 
 	if len(slots) == 0 {
 		session.State = model.StateDate
@@ -280,7 +280,7 @@ func (f *Flow) presentAvailableSlots(session *model.Session) (*model.Session, st
 }
 
 func (f *Flow) presentAvailableSlotsExcluding(session *model.Session, excluded string) (*model.Session, string) {
-	slots, _ := f.appointments.GetAvailableSlots(session.ClientID, session.Date)
+	slots, _ := f.appointments.GetAvailableSlotsForService(session.ClientID, session.Date, session.Service)
 
 	var filtered []string
 	for _, slot := range slots {
@@ -339,7 +339,7 @@ func (f *Flow) handleTime(session *model.Session, text string) (*model.Session, 
 	}
 
 	if intent.AsksEarlier {
-		slots, _ := f.appointments.GetAvailableSlots(session.ClientID, session.Date)
+		slots, _ := f.appointments.GetAvailableSlotsForService(session.ClientID, session.Date, session.Service)
 
 		base := session.SuggestedTime
 		if base == "" {
@@ -358,7 +358,7 @@ func (f *Flow) handleTime(session *model.Session, text string) (*model.Session, 
 	}
 
 	if intent.AsksLater {
-		slots, _ := f.appointments.GetAvailableSlots(session.ClientID, session.Date)
+		slots, _ := f.appointments.GetAvailableSlotsForService(session.ClientID, session.Date, session.Service)
 
 		base := session.SuggestedTime
 		if base == "" {
@@ -377,7 +377,7 @@ func (f *Flow) handleTime(session *model.Session, text string) (*model.Session, 
 	}
 
 	if intent.Period != "" {
-		slots, _ := f.appointments.GetAvailableSlots(session.ClientID, session.Date)
+		slots, _ := f.appointments.GetAvailableSlotsForService(session.ClientID, session.Date, session.Service)
 		filtered := filterSlotsByPeriod(slots, intent.Period)
 
 		if len(filtered) == 0 {
@@ -431,7 +431,7 @@ func (f *Flow) handleTime(session *model.Session, text string) (*model.Session, 
 		}
 	}
 
-	slots, _ := f.appointments.GetAvailableSlots(session.ClientID, session.Date)
+	slots, _ := f.appointments.GetAvailableSlotsForService(session.ClientID, session.Date, session.Service)
 
 	valid := false
 	for _, s := range slots {

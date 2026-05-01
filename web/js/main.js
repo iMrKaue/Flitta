@@ -44,18 +44,30 @@ function logout() {
 
 async function createService() {
     const name = document.getElementById("newService").value;
+    const durationValue = document.getElementById("newServiceDuration").value;
+    const duration = parseInt(durationValue);
 
-    if (!name) {
+    if(!name) {
         alert("Digite o nome do serviço ou atendimento");
+        return;
+    }
+
+    if(!duration || duration <= 0) {
+        alert("Digite a duração do serviço em minutos");
         return;
     }
 
     await apiFetch("/admin/service/create", {
         method: "POST",
-        body: JSON.stringify({ name })
+        body: JSON.stringify({
+            name, 
+            duration
+        })
     });
 
     document.getElementById("newService").value = "";
+    document.getElementById("newServiceDuration").value = "";
+
     loadServices();
 }
 
@@ -117,7 +129,7 @@ async function loadServices() {
         li.className = "list-item";
 
         li.innerHTML = `
-            <span>${s.name}</span>
+            <span>${s.name} — ${s.duration || 30} min</span>
             <button class="danger-button" onclick="deleteService('${s.name}')">Excluir</button>
         `;
 

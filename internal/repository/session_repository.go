@@ -65,23 +65,31 @@ func DeleteSession(phone string) {
 
 func GetServices(clientID int) []model.SalonService {
 	rows, err := database.DB.Query(`
-		SELECT id, name FROM services WHERE client_id = $1
+		SELECT id, name, COALESCE(duration, 30)
+		FROM services
+		WHERE client_id = $1
+		ORDER BY id ASC
 	`, clientID)
 
 	if err != nil {
-		fmt.Println("Erro ao buscar serviços:", err)
-		return []model.SalonService{}
+		return nil
 	}
 	defer rows.Close()
 
-	list := make([]model.SalonService, 0)
+	var services []model.SalonService
+
 	for rows.Next() {
 		var s model.SalonService
-		rows.Scan(&s.ID, &s.Name)
-		list = append(list, s)
+
+		err := rows.Scan(&s.ID, &s.Name, &s.Duration)
+		if err != nil {
+			continue
+		}
+
+		services = append(services, s)
 	}
 
-	return list
+	return services
 }
 
 func CreateService(clientID int, name string) error {
