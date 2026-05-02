@@ -6,40 +6,87 @@
 </head>
 <body>
 
-    <div class="container">
+    <div class="container dashboard-container">
 
-        <header>
-            <h1>Flitta</h1>
+        <header class="dashboard-header">
+            <div>
+                <h1>Flitta</h1>
+                <p>Gerencie sua agenda, serviços e horários de funcionamento.</p>
+            </div>
+    
             <button onclick="logout()">Sair</button>
         </header>
-
+    
+        <section class="summary-grid">
+            <div class="summary-card">
+                <span>📅</span>
+                <div>
+                    <strong id="appointmentsCount">0</strong>
+                    <small>agendamentos hoje</small>
+                </div>
+            </div>
+    
+            <div class="summary-card">
+                <span>⚙️</span>
+                <div>
+                    <strong id="servicesCount">0</strong>
+                    <small>serviços ativos</small>
+                </div>
+            </div>
+    
+            <div class="summary-card">
+                <span>⏰</span>
+                <div>
+                    <strong id="hoursSummary">--</strong>
+                    <small>funcionamento</small>
+                </div>
+            </div>
+        </section>
+    
         <section class="card">
-            <h2>📅 Agenda do dia</h2>
+            <div class="section-title">
+                <div>
+                    <h2>📅 Agenda do dia</h2>
+                    <p>Veja os atendimentos agendados para hoje.</p>
+                </div>
+            </div>
+    
             <ul id="appointments"></ul>
         </section>
-
+    
         <section class="card">
-            <h2>⚙️ Serviços</h2>
-
+            <div class="section-title">
+                <div>
+                    <h2>⚙️ Serviços / Atendimentos</h2>
+                    <p>Cadastre os serviços que seus clientes podem agendar.</p>
+                </div>
+            </div>
+    
             <ul id="services"></ul>
-
+    
             <div class="form-incline">
-                <input id="newService" placeholder="Novo serviço">
+                <input id="newService" placeholder="Novo serviço ou atendimento">
+                <input id="newServiceDuration" type="number" min="15" step="15" placeholder="Duração em minutos">
                 <button onclick="createService()">Adicionar</button>
             </div>
         </section>
-
+    
         <section class="card">
-            <h2>⏰ Horários de Funcionamentos</h2>
-
+            <div class="section-title">
+                <div>
+                    <h2>⏰ Horários de funcionamento</h2>
+                    <p>Defina o intervalo em que os agendamentos poderão acontecer.</p>
+                </div>
+            </div>
+    
             <div class="form-incline">
                 <input id="start" placeholder="09:00">
                 <input id="end" placeholder="18:00">
-                <input id="interval"placeholder="30">
+                <input id="interval" placeholder="30">
                 <button onclick="setHours()">Salvar</button>
             </div>
         </section>
-
+    
     </div>
 
     <script src="js/api.js"></script>

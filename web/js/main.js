@@ -1,15 +1,36 @@
-async function loadServices() {
-    const services = await apiFetch("/admin/service/list");
+async function loadAppointments() {
+    const data = await apiFetch("/appointments");
 
-    const list = document.getElementById("services");
+    const list = document.getElementById("appointments");
+    const appointmentsCount = document.getElementById("appointmentsCount");
+
     list.innerHTML = "";
 
-    services.forEach(s => {
+    if (!data || data.length === 0) {
+        appointmentsCount.innerText = "0";
+
         const li = document.createElement("li");
+        li.className = "empty-state";
+        li.innerHTML = `
+            <strong>Nenhum agendamento para hoje.</strong>
+            <span>Quando houver agendamentos, eles aparecerão aqui.</span>
+        `;
+        list.appendChild(li);
+        return;
+    }
+
+    appointmentsCount.innerText = data.length;
+
+    data.forEach(a => {
+        const li = document.createElement("li");
+        li.className = "appointment-item";
 
         li.innerHTML = `
-            ${s.name}
-            <button onclick="deleteService('${s.name}')">X</button>
+            <div>
+                <strong>${a.Name}</strong>
+                <span>${a.Service}</span>
+            </div>
+            <small>📅 ${a.Date} às ${a.Time}</small>
         `;
 
         list.appendChild(li);
@@ -23,18 +44,30 @@ function logout() {
 
 async function createService() {
     const name = document.getElementById("newService").value;
+    const durationValue = document.getElementById("newServiceDuration").value;
+    const duration = parseInt(durationValue);
 
-    if (!name) {
-        alert("Digite um nome");
+    if(!name) {
+        alert("Digite o nome do serviço ou atendimento");
+        return;
+    }
+
+    if(!duration || duration <= 0) {
+        alert("Digite a duração do serviço em minutos");
         return;
     }
 
     await apiFetch("/admin/service/create", {
         method: "POST",
-        body: JSON.stringify({ name })
+        body: JSON.stringify({
+            name, 
+            duration
+        })
     });
 
     document.getElementById("newService").value = "";
+    document.getElementById("newServiceDuration").value = "";
+
     loadServices();
 }
 
@@ -52,7 +85,7 @@ async function setHours() {
     const interval = parseInt(document.getElementById("interval").value);
 
     if (!start || !end || !interval) {
-        alert("Preencha tudo");
+        document.getElementById("hoursSummary").innerText = `${start} - ${end}`;
         return;
     }
 
@@ -65,27 +98,41 @@ async function setHours() {
         })
     });
 
-    alert("Horários salvos com sucesso");
+    alert("Horários de funcionamento salvos com sucesso");
 }
 
-async function loadAppointments() {
-    const data = await apiFetch("/appointments");
+async function loadServices() {
+    const services = await apiFetch("/admin/service/list");
 
-    console.log("APPOINTMENTS:", data); // 👈 ADICIONA ISSO
+    const list = document.getElementById("services");
+    const servicesCount = document.getElementById("servicesCount");
 
-    const list = document.getElementById("appointments");
     list.innerHTML = "";
 
-    data.forEach(a => {
+    if (!services || services.length === 0) {
+        servicesCount.innerText = "0";
+
         const li = document.createElement("li");
-    
+        li.className = "empty-state";
         li.innerHTML = `
-            <div style="margin-bottom:10px">
-                <strong>${a.Name}</strong> - ${a.Service}<br>
-                <small>📅 ${a.Date} às ${a.Time}</small>
-            </div>
+            <strong>Nenhum serviço cadastrado ainda.</strong>
+            <span>Adicione o primeiro serviço ou atendimento abaixo.</span>
         `;
-    
+        list.appendChild(li);
+        return;
+    }
+
+    servicesCount.innerText = services.length;
+
+    services.forEach(s => {
+        const li = document.createElement("li");
+        li.className = "list-item";
+
+        li.innerHTML = `
+            <span>${s.name} — ${s.duration || 30} min</span>
+            <button class="danger-button" onclick="deleteService('${s.name}')">Excluir</button>
+        `;
+
         list.appendChild(li);
     });
 }

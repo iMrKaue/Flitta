@@ -26,16 +26,17 @@ func GetClientByPhone(phone string) (int, error) {
 	return id, nil
 }
 
-func RegisterClient(name, phone, email, password string) (string, error) {
+func RegisterClient(name, phone, email, password, businessType string) (string, error) {
 
 	phone = utils.NormalizeCustomerPhone(phone)
+	businessType = NormalizeBusinessType(businessType)
 
 	hashed, err := HashPassword(password)
 	if err != nil {
 		return "", err
 	}
 
-	clientID, err := repository.CreateClient(name, phone, email, hashed)
+	clientID, err := repository.CreateClient(name, phone, email, hashed, businessType)
 	if err != nil {
 		if strings.Contains(err.Error(), "clients_phone_key") {
 			return "", fmt.Errorf("telefone já cadastrado")
@@ -49,4 +50,25 @@ func RegisterClient(name, phone, email, password string) (string, error) {
 	}
 
 	return token, nil
+}
+
+func NormalizeBusinessType(value string) string {
+	value = strings.ToLower(strings.TrimSpace(value))
+
+	switch value {
+	case "beauty", "salon", "salao", "salão", "estetica", "estética":
+		return "beauty"
+	case "barber", "barbearia":
+		return "barber"
+	case "clinic", "clinica", "clínica":
+		return "clinic"
+	case "gym", "academia", "personal":
+		return "gym"
+	case "petshop", "pet", "pet_shop":
+		return "petshop"
+	case "other", "outro", "":
+		return "other"
+	default:
+		return "other"
+	}
 }

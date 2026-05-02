@@ -2,6 +2,7 @@ package handler
 
 import (
 	"encoding/json"
+	"flitta/internal/database"
 	"flitta/internal/middleware"
 	"flitta/internal/repository"
 	"flitta/internal/service"
@@ -22,22 +23,45 @@ type WorkingHoursRequest struct {
 }
 
 func CreateServiceHandler(w http.ResponseWriter, r *http.Request) {
-	clientID := r.Context().Value(middleware.ClientIDKey).(int)
-
-	var req struct {
-		Name string `json:"name"`
-	}
-
-	json.NewDecoder(r.Body).Decode(&req)
-
-	err := repository.CreateService(clientID, req.Name)
-	if err != nil {
-		http.Error(w, "Erro ao criar serviço", 500)
+	clientID, ok := r.Context().Value(middleware.ClientIDKey).(int)
+	if !ok {
+		http.Error(w, "cliente não identificado", http.StatusUnauthorized)
 		return
 	}
 
+	var req struct {
+		Name     string `json:"name"`
+		Duration int    `json:"duration"`
+	}
+
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		http.Error(w, "dados inválidos", http.StatusBadRequest)
+		return
+	}
+
+	if req.Name == "" {
+		http.Error(w, "nome do serviço é obrigatório", http.StatusBadRequest)
+		return
+	}
+
+	if req.Duration <= 0 {
+		req.Duration = 30
+	}
+
+	_, err := database.DB.Exec(`
+		INSERT INTO services (client_id, name, duration)
+		VALUES ($1, $2, $3)
+	`, clientID, req.Name, req.Duration)
+
+	if err != nil {
+		http.Error(w, "erro ao criar serviço", http.StatusInternalServerError)
+		return
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(http.StatusCreated)
 	json.NewEncoder(w).Encode(map[string]string{
-		"message": "Criado com sucesso",
+		"message": "serviço criado com sucesso",
 	})
 }
 

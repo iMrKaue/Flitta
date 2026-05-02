@@ -44,8 +44,8 @@ func WebhookHandler(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Content-Type", "application/xml")
 		w.Write([]byte(`
 		<Response>
-			<Message>` + response + `<Message>
-		<Response>
+			<Message>` + response + `</Message>
+		</Response>
 		`))
 	} else {
 		// Postman -> JSON

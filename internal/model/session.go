@@ -10,4 +10,5 @@ type Session struct {
 	Time     string
 
 	SelectedAppointmentID int
+	SuggestedTime         string
 }

@@ -11,7 +11,8 @@ func GetSession(phone string) (model.Session, error) {
 
 	err := database.DB.QueryRow(`
 		SELECT phone, client_id, state, name, service, date, time,
-			COALESCE(selected_appointment_id, 0)
+		COALESCE(selected_appointment_id, 0),
+		COALESCE(suggested_time, '')
 		FROM user_sessions
 		WHERE phone = $1
 	`, phone).Scan(
@@ -23,6 +24,7 @@ func GetSession(phone string) (model.Session, error) {
 		&s.Date,
 		&s.Time,
 		&s.SelectedAppointmentID,
+		&s.SuggestedTime,
 	)
 
 	return s, err
@@ -30,18 +32,19 @@ func GetSession(phone string) (model.Session, error) {
 
 func SaveSession(s model.Session) error {
 	_, err := database.DB.Exec(`
-		INSERT INTO user_sessions (phone, client_id, state, name, service, date, time, selected_appointment_id)
-		VALUES ($1,$2,$3,$4,$5,$6,$7,$8)
-		ON CONFLICT (phone)
-		DO UPDATE SET
-			state = EXCLUDED.state,
-			name = EXCLUDED.name,
-			service = EXCLUDED.service,
-			date = EXCLUDED.date,
-			time = EXCLUDED.time,
-			selected_appointment_id = EXCLUDED.selected_appointment_id,
-			updated_at = CURRENT_TIMESTAMP
-	`,
+	INSERT INTO user_sessions (phone, client_id, state, name, service, date, time, selected_appointment_id, suggested_time)
+	VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9)
+	ON CONFLICT (phone)
+	DO UPDATE SET
+		state = EXCLUDED.state,
+		name = EXCLUDED.name,
+		service = EXCLUDED.service,
+		date = EXCLUDED.date,
+		time = EXCLUDED.time,
+		selected_appointment_id = EXCLUDED.selected_appointment_id,
+		suggested_time = EXCLUDED.suggested_time,
+		updated_at = CURRENT_TIMESTAMP
+`,
 		s.Phone,
 		s.ClientID,
 		s.State,
@@ -50,6 +53,7 @@ func SaveSession(s model.Session) error {
 		s.Date,
 		s.Time,
 		s.SelectedAppointmentID,
+		s.SuggestedTime,
 	)
 
 	return err
@@ -61,23 +65,31 @@ func DeleteSession(phone string) {
 
 func GetServices(clientID int) []model.SalonService {
 	rows, err := database.DB.Query(`
-		SELECT id, name FROM services WHERE client_id = $1
+		SELECT id, name, COALESCE(duration, 30)
+		FROM services
+		WHERE client_id = $1
+		ORDER BY id ASC
 	`, clientID)
 
 	if err != nil {
-		fmt.Println("Erro ao buscar serviços:", err)
-		return []model.SalonService{}
+		return nil
 	}
 	defer rows.Close()
 
-	list := make([]model.SalonService, 0)
+	var services []model.SalonService
+
 	for rows.Next() {
 		var s model.SalonService
-		rows.Scan(&s.ID, &s.Name)
-		list = append(list, s)
+
+		err := rows.Scan(&s.ID, &s.Name, &s.Duration)
+		if err != nil {
+			continue
+		}
+
+		services = append(services, s)
 	}
 
-	return list
+	return services
 }
 
 func CreateService(clientID int, name string) error {
