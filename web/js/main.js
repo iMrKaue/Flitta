@@ -43,62 +43,83 @@ function logout() {
 }
 
 async function createService() {
-    const name = document.getElementById("newService").value;
-    const durationValue = document.getElementById("newServiceDuration").value;
-    const duration = parseInt(durationValue);
+    const nameInput = document.getElementById("newService");
+    const durationInput = document.getElementById("newServiceDuration");
 
-    if(!name) {
-        alert("Digite o nome do serviço ou atendimento");
+    const name = nameInput.value.trim();
+    const duration = parseInt(durationInput.value);
+
+    if (!name) {
+        alert("Digite o nome do serviço ou atendimento.");
         return;
     }
 
-    if(!duration || duration <= 0) {
-        alert("Digite a duração do serviço em minutos");
+    if (!duration || duration <= 0) {
+        alert("Digite a duração do serviço em minutos.");
         return;
     }
 
-    await apiFetch("/admin/service/create", {
-        method: "POST",
-        body: JSON.stringify({
-            name, 
-            duration
-        })
-    });
+    try {
+        await apiFetch("/admin/service/create", {
+            method: "POST",
+            body: JSON.stringify({
+                name,
+                duration
+            })
+        });
 
-    document.getElementById("newService").value = "";
-    document.getElementById("newServiceDuration").value = "";
+        nameInput.value = "";
+        durationInput.value = "";
 
-    loadServices();
+        await loadServices();
+    } catch (err) {
+        alert(err.message || "Não foi possível criar o serviço.");
+    }
 }
 
 async function deleteService(name) {
-    await apiFetch(`/admin/service/delete?name=${name}`, {
-        method: "DELETE"
-    });
+    const confirmDelete = confirm(`Deseja excluir o serviço "${name}"?`);
 
-    loadServices();
-}
-
-async function setHours() {
-    const start = document.getElementById("start").value;
-    const end = document.getElementById("end").value;
-    const interval = parseInt(document.getElementById("interval").value);
-
-    if (!start || !end || !interval) {
-        document.getElementById("hoursSummary").innerText = `${start} - ${end}`;
+    if (!confirmDelete) {
         return;
     }
 
-    await apiFetch("/admin/hours/set", {
-        method: "POST",
-        body: JSON.stringify({
-            start,
-            end,
-            interval,
-        })
-    });
+    try {
+        await apiFetch(`/admin/service/delete?name=${encodeURIComponent(name)}`, {
+            method: "DELETE"
+        });
 
-    alert("Horários de funcionamento salvos com sucesso");
+        await loadServices();
+    } catch (err) {
+        alert(err.message || "Não foi possível excluir o serviço.");
+    }
+}
+
+async function setHours() {
+    const start = document.getElementById("start").value.trim();
+    const end = document.getElementById("end").value.trim();
+    const interval = parseInt(document.getElementById("interval").value);
+
+    if (!start || !end || !interval) {
+        alert("Preencha início, fim e intervalo dos horários.");
+        return;
+    }
+
+    try {
+        await apiFetch("/admin/hours/set", {
+            method: "POST",
+            body: JSON.stringify({
+                start,
+                end,
+                interval,
+            })
+        });
+
+        document.getElementById("hoursSummary").innerText = `${start} - ${end}`;
+        alert("Horários de funcionamento salvos com sucesso.");
+    } catch (err) {
+        alert(err.message || "Não foi possível salvar os horários.");
+    }
 }
 
 async function loadServices() {
@@ -128,8 +149,13 @@ async function loadServices() {
         const li = document.createElement("li");
         li.className = "list-item";
 
+        const duration = s.duration || 30;
+
         li.innerHTML = `
-            <span>${s.name} — ${s.duration || 30} min</span>
+            <div class="service-info">
+                <strong>${s.name}</strong>
+                <small>${duration} minutos de duração</small>
+            </div>
             <button class="danger-button" onclick="deleteService('${s.name}')">Excluir</button>
         `;
 
