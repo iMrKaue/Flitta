@@ -27,6 +27,7 @@ func main() {
 	http.HandleFunc("/admin/service/list", middleware.AuthMiddleware(handler.GetServicesHandler))
 	http.HandleFunc("/admin/service/delete", middleware.AuthMiddleware(handler.DeleteServiceHandler))
 	http.HandleFunc("/admin/hours/set", middleware.AuthMiddleware(handler.SetWorkingHoursHandler))
+	http.HandleFunc("/admin/hours/get", middleware.AuthMiddleware(handler.GetWorkingHourHandler))
 
 	http.HandleFunc("/auth/register", handler.RegisterHandler)
 	http.HandleFunc("/auth/login", handler.LoginHandler)
