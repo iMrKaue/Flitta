@@ -166,9 +166,17 @@ func (f *Flow) handleService(session *model.Session, text string) (*model.Sessio
 	services := repository.GetServices(session.ClientID)
 	businessType := repository.GetBusinessTypeByClientID(session.ClientID)
 
-	index, err := strconv.Atoi(text)
-	if err == nil && index >= 1 && index <= len(services) {
-		session.Service = services[index-1].Name
+	text = strings.ToLower(strings.TrimSpace(text))
+
+	if len(services) == 0 {
+		session.State = model.StateIdle
+		return session, "Este estabelecimento ainda não possui serviços cadastrados 😊\nEntre em contato com o responsável ou tente novamente mais tarde."
+	}
+
+	selectedIndex := extractAppointmentSelection(text)
+
+	if selectedIndex >= 1 && selectedIndex <= len(services) {
+		session.Service = services[selectedIndex-1].Name
 
 		if session.Date == "" {
 			session.State = model.StateDate
@@ -183,7 +191,9 @@ func (f *Flow) handleService(session *model.Session, text string) (*model.Sessio
 	}
 
 	for _, s := range services {
-		if strings.Contains(strings.ToLower(text), strings.ToLower(s.Name)) {
+		serviceName := strings.ToLower(strings.TrimSpace(s.Name))
+
+		if serviceName != "" && strings.Contains(text, serviceName) {
 			session.Service = s.Name
 
 			if session.Date == "" {
@@ -199,12 +209,9 @@ func (f *Flow) handleService(session *model.Session, text string) (*model.Sessio
 		}
 	}
 
-	response := utils.AskDateMessageByBusinessType(businessType)
-	for i, s := range services {
-		response += fmt.Sprintf("%d - %s\n", i+1, s.Name)
-	}
+	session.State = model.StateService
 
-	return session, response
+	return session, "Não entendi o serviço 😅\n\n" + buildServiceList(session.ClientID, false)
 }
 
 func (f *Flow) handleDate(session *model.Session, text string) (*model.Session, string) {
