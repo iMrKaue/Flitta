@@ -400,3 +400,10 @@ li {
     width: 100%;
   }
 }
+
+.form-helper {
+  margin: 10px 0 0;
+  color: #6b7280;
+  font-size: 13px;
+  line-height: 1.4;
+}

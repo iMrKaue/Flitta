@@ -1,3 +1,19 @@
+function formatHour(value) {
+    if (!value) {
+        return "";
+    }
+
+    return value.substring(0, 5);
+}
+
+function isValidHour(value) {
+    return /^([01]\d|2[0-3]):[0-5]\d$/.test(value);
+}
+
+function isStartBeforeEnd(start, end) {
+    return start < end;
+}
+
 async function loadAppointments() {
     const data = await apiFetch("/appointments");
 
@@ -95,13 +111,62 @@ async function deleteService(name) {
     }
 }
 
+async function loadWorkingHours() {
+    const hoursSummary = document.getElementById("hoursSummary");
+    const hoursStatus = document.getElementById("hoursStatus");
+
+    try {
+        const data = await apiFetch("/admin/hours/get");
+
+        if (!data || !data.configured) {
+            hoursSummary.innerText = "--";
+            hoursStatus.innerText = "Nenhum horário de funcionamento configurado ainda.";
+            return;
+        }
+
+        const start = formatHour(data.start);
+        const end = formatHour(data.end);
+        const interval = data.interval;
+
+        document.getElementById("start").value = start;
+        document.getElementById("end").value = end;
+        document.getElementById("interval").value = interval;
+
+        hoursSummary.innerText = `${start} - ${end}`;
+        hoursStatus.innerText = `Funcionamento configurado das ${start} às ${end}, com intervalo de ${interval} minutos.`;
+    } catch (err) {
+        hoursSummary.innerText = "--";
+        hoursStatus.innerText = "Não foi possível carregar os horários configurados.";
+    }
+}
+
 async function setHours() {
-    const start = document.getElementById("start").value.trim();
-    const end = document.getElementById("end").value.trim();
-    const interval = parseInt(document.getElementById("interval").value);
+    const startInput = document.getElementById("start");
+    const endInput = document.getElementById("end");
+    const intervalInput = document.getElementById("interval");
+    const hoursStatus = document.getElementById("hoursStatus");
+
+    const start = startInput.value.trim();
+    const end = endInput.value.trim();
+    const interval = parseInt(intervalInput.value);
 
     if (!start || !end || !interval) {
         alert("Preencha início, fim e intervalo dos horários.");
+        return;
+    }
+
+    if (!isValidHour(start) || !isValidHour(end)) {
+        alert("Use horários no formato HH:MM. Exemplo: 09:00.");
+        return;
+    }
+
+    if (!isStartBeforeEnd(start, end)) {
+        alert("O horário de início deve ser menor que o horário de fim.");
+        return;
+    }
+
+    if (interval < 15) {
+        alert("O intervalo mínimo deve ser de 15 minutos.");
         return;
     }
 
@@ -116,6 +181,8 @@ async function setHours() {
         });
 
         document.getElementById("hoursSummary").innerText = `${start} - ${end}`;
+        hoursStatus.innerText = `Funcionamento configurado das ${start} às ${end}, com intervalo de ${interval} minutos.`;
+
         alert("Horários de funcionamento salvos com sucesso.");
     } catch (err) {
         alert(err.message || "Não foi possível salvar os horários.");
@@ -165,3 +232,4 @@ async function loadServices() {
 
 loadServices();
 loadAppointments();
+loadWorkingHours();

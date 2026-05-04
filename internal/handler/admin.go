@@ -8,6 +8,7 @@ import (
 	"flitta/internal/service"
 	"fmt"
 	"net/http"
+	"time"
 )
 
 type CreateServiceRequest struct {
@@ -89,6 +90,15 @@ func DeleteServiceHandler(w http.ResponseWriter, r *http.Request) {
 	})
 }
 
+func isValidHour(value string) bool {
+	_, err := time.Parse("15:04", value)
+	return err == nil
+}
+
+func parseHour(value string) (time.Time, error) {
+	return time.Parse("15:04", value)
+}
+
 func SetWorkingHoursHandler(w http.ResponseWriter, r *http.Request) {
 	clientID := r.Context().Value(middleware.ClientIDKey).(int)
 
@@ -100,19 +110,81 @@ func SetWorkingHoursHandler(w http.ResponseWriter, r *http.Request) {
 
 	err := json.NewDecoder(r.Body).Decode(&req)
 	if err != nil {
-		http.Error(w, "Erro ao ler dados", 400)
+		http.Error(w, "Erro ao ler dados", http.StatusBadRequest)
+		return
+	}
+
+	if req.Start == "" || req.End == "" || req.Interval <= 0 {
+		http.Error(w, "Preencha início, fim e intervalo", http.StatusBadRequest)
+		return
+	}
+
+	if !isValidHour(req.Start) || !isValidHour(req.End) {
+		http.Error(w, "Use horários no formato HH:MM, exemplo: 09:00", http.StatusBadRequest)
+		return
+	}
+
+	startTime, err := parseHour(req.Start)
+	if err != nil {
+		http.Error(w, "Horário de início inválido", http.StatusBadRequest)
+		return
+	}
+
+	endTime, err := parseHour(req.End)
+	if err != nil {
+		http.Error(w, "Horário de fim inválido", http.StatusBadRequest)
+		return
+	}
+
+	if !startTime.Before(endTime) {
+		http.Error(w, "O horário de início deve ser menor que o horário de fim", http.StatusBadRequest)
+		return
+	}
+
+	if req.Interval < 15 {
+		http.Error(w, "O intervalo mínimo deve ser de 15 minutos", http.StatusBadRequest)
+		return
+	}
+
+	if req.Interval > 240 {
+		http.Error(w, "O intervalo não pode ser maior que 240 minutos", http.StatusBadRequest)
 		return
 	}
 
 	err = repository.SetWorkingHours(clientID, req.Start, req.End, req.Interval)
 	if err != nil {
 		fmt.Println("ERRO REAL:", err)
-		http.Error(w, err.Error(), 500)
+		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
 	}
 
+	w.Header().Set("Content-Type", "application/json")
 	json.NewEncoder(w).Encode(map[string]string{
-		"messsage": "Horários atualizados",
+		"message": "Horários atualizados",
+	})
+}
+
+func GetWorkingHourHandler(w http.ResponseWriter, r *http.Request) {
+	clientID := r.Context().Value(middleware.ClientIDKey).(int)
+
+	start, end, interval, err := repository.GetWorkingHours(clientID)
+	if err != nil {
+		w.Header().Set("Content-Type", "application/json")
+		json.NewEncoder(w).Encode(map[string]interface{}{
+			"configured": false,
+			"start":      "",
+			"end":        "",
+			"interval":   0,
+		})
+		return
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	json.NewEncoder(w).Encode(map[string]interface{}{
+		"configured": true,
+		"start":      start,
+		"end":        end,
+		"interval":   interval,
 	})
 }
 
