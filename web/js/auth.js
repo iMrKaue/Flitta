@@ -14,6 +14,7 @@ async function login() {
     });
 
     if (!res.ok) {
+      localStorage.removeItem("token");
       document.getElementById("error").innerText = "Email ou senha inválidos";
       return;
     }
@@ -41,7 +42,9 @@ async function register() {
   const errorElement = document.getElementById("registerError");
 
   if (!name || !phone || !email || !password || !businessType) {
+    localStorage.removeItem("token");
     errorElement.innerText = "Preencha todos os campos";
+    return;
   }
 
   try {
@@ -60,6 +63,7 @@ async function register() {
     });
 
     if (!res.ok) {
+      localStorage.removeItem("token");
       errorElement.innerText = "Não foi possível cadastrar o estabelecimento";
       return;
     }
