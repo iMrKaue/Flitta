@@ -340,3 +340,63 @@ li {
     flex-direction: column;
   }
 }
+
+.service-info {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.service-info strong {
+  color: #111827;
+}
+
+.service-info small {
+  color: #6b7280;
+  font-size: 13px;
+}
+
+.form-incline input {
+  flex: 1;
+  min-width: 0;
+}
+
+.dashboard-header button {
+  background: #111827;
+}
+
+.dashboard-header button:hover {
+  background: #1f2937;
+}
+
+.card {
+  border: 1px solid #eef0f3;
+}
+
+.list-item button,
+.appointment-item button {
+  flex-shrink: 0;
+}
+
+@media (max-width: 520px) {
+  .dashboard-header {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 16px;
+  }
+
+  .dashboard-header button {
+    width: 100%;
+  }
+
+  .list-item,
+  .appointment-item {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 10px;
+  }
+
+  .list-item button {
+    width: 100%;
+  }
+}

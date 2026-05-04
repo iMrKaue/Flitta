@@ -1,6 +1,8 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="pt-BR">
 <head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Dashboard - Flitta</title>
     <link rel="stylesheet" href="css/style.css">
 </head>
@@ -65,9 +67,24 @@
             <ul id="services"></ul>
     
             <div class="form-incline">
-                <input id="newService" placeholder="Novo serviço ou atendimento">
-                <input id="newServiceDuration" type="number" min="15" step="15" placeholder="Duração em minutos">
-                <button onclick="createService()">Adicionar</button>
+                <input 
+                    id="newService" 
+                    name="serviceName"
+                    placeholder="Ex: Corte, Consulta, Progressiva"
+                    autocomplete="off"
+                >
+            
+                <input 
+                    id="newServiceDuration" 
+                    name="serviceDuration"
+                    type="number" 
+                    min="15" 
+                    step="15" 
+                    placeholder="Duração em minutos"
+                    autocomplete="off"
+                >
+            
+                <button onclick="createService()">Adicionar serviço</button>
             </div>
         </section>
     
@@ -80,10 +97,31 @@
             </div>
     
             <div class="form-incline">
-                <input id="start" placeholder="09:00">
-                <input id="end" placeholder="18:00">
-                <input id="interval" placeholder="30">
-                <button onclick="setHours()">Salvar</button>
+                <input 
+                    id="start" 
+                    name="workingStart"
+                    placeholder="Início: 09:00"
+                    autocomplete="off"
+                >
+            
+                <input 
+                    id="end" 
+                    name="workingEnd"
+                    placeholder="Fim: 18:00"
+                    autocomplete="off"
+                >
+            
+                <input 
+                    id="interval" 
+                    name="workingInterval"
+                    type="number"
+                    min="15"
+                    step="15"
+                    placeholder="Intervalo: 30"
+                    autocomplete="off"
+                >
+            
+                <button onclick="setHours()">Salvar horários</button>
             </div>
         </section>
     
