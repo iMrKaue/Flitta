@@ -1,3 +1,6 @@
+let currentAppointmentFilter = "all";
+let allAppointments = [];
+
 function formatHour(value) {
     if (!value) {
         return "";
@@ -15,38 +18,146 @@ function isStartBeforeEnd(start, end) {
 }
 
 async function loadAppointments() {
-    const data = await apiFetch("/appointments");
+    try {
+        const data = await apiFetch("/appointments");
 
+        allAppointments = Array.isArray(data) ? data : [];
+
+        renderAppointments();
+    } catch (err) {
+
+        allAppointments = [];
+        renderAppointments("Não foi possível carregar os agendamentos.");
+    }
+}
+
+function todayISO() {
+    const today = new Date();
+
+    const year = today.getFullYear();
+    const month = String(today.getMonth() + 1).padStart(2, "0");
+    const day = String(today.getDate()).padStart(2, "0");
+
+    return `${year}-${month}-${day}`;
+}
+
+function normalizeAppointmentDate(value) {
+    if (!value) {
+        return "";
+    }
+
+    return value.substring(0, 10);
+}
+
+function formatAppointmentDate(value) {
+    const date = normalizeAppointmentDate(value);
+
+    if (!date) {
+        return "--";
+    }
+
+    const [year, month, day] = date.split("-");
+    return `${day}/${month}/${year}`;
+}
+
+function formatPhone(value) {
+    if (!value) {
+        return "Telefone não informado";
+    }
+
+    return value;
+}
+
+function getFilteredAppointments() {
+    const today = todayISO();
+
+    if (currentAppointmentFilter === "today") {
+        return allAppointments.filter(a => normalizeAppointmentDate(a.date || a.Date) === today);
+    }
+
+    if (currentAppointmentFilter === "upcoming") {
+        return allAppointments.filter(a => normalizeAppointmentDate(a.date || a.Date) >= today);
+    }
+
+    return allAppointments;
+}
+
+function setAppointmentFilter(filter) {
+    currentAppointmentFilter = filter;
+
+    document.getElementById("filterToday").classList.toggle("active", filter === "today");
+    document.getElementById("filterUpcoming").classList.toggle("active", filter === "upcoming");
+    document.getElementById("filterAll").classList.toggle("active", filter === "all");
+
+    renderAppointments();
+}
+
+function renderAppointments(errorMessage = "") {
     const list = document.getElementById("appointments");
     const appointmentsCount = document.getElementById("appointmentsCount");
 
     list.innerHTML = "";
 
-    if (!data || data.length === 0) {
+    if (errorMessage) {
         appointmentsCount.innerText = "0";
 
         const li = document.createElement("li");
         li.className = "empty-state";
         li.innerHTML = `
-            <strong>Nenhum agendamento para hoje.</strong>
+            <strong>${errorMessage}</strong>
+            <span>Tente recarregar a página ou verificar sua conexão com o servidor.</span>
+        `;
+        list.appendChild(li);
+        return;
+    }
+
+    const appointments = getFilteredAppointments();
+
+    appointmentsCount.innerText = appointments.length;
+
+    if (!appointments || appointments.length === 0) {
+        const li = document.createElement("li");
+        li.className = "empty-state";
+
+        const messageByFilter = {
+            today: "Nenhum agendamento para hoje.",
+            upcoming: "Nenhum agendamento futuro encontrado.",
+            all: "Nenhum agendamento cadastrado."
+        };
+
+        li.innerHTML = `
+            <strong>${messageByFilter[currentAppointmentFilter]}</strong>
             <span>Quando houver agendamentos, eles aparecerão aqui.</span>
         `;
         list.appendChild(li);
         return;
     }
 
-    appointmentsCount.innerText = data.length;
-
-    data.forEach(a => {
+    appointments.forEach(a => {
         const li = document.createElement("li");
-        li.className = "appointment-item";
+        li.className = "appointment-item appointment-card";
+
+        const name = a.name || a.Name || "Cliente sem nome";
+        const service = a.service || a.Service || "Serviço não informado";
+        const date = a.date || a.Date || "";
+        const time = a.time || a.Time || "";
+        const phone = a.customer_phone || a.CustomerPhone || "";
 
         li.innerHTML = `
-            <div>
-                <strong>${a.Name}</strong>
-                <span>${a.Service}</span>
+            <div class="appointment-main">
+                <div class="appointment-time">
+                    <strong>${time || "--:--"}</strong>
+                    <small>${formatAppointmentDate(date)}</small>
+                </div>
+
+                <div class="appointment-details">
+                    <strong>${name}</strong>
+                    <span>${service}</span>
+                    <small>📞 ${formatPhone(phone)}</small>
+                </div>
             </div>
-            <small>📅 ${a.Date} às ${a.Time}</small>
+
+            <span class="appointment-badge">Agendado</span>
         `;
 
         list.appendChild(li);

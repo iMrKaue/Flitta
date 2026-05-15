@@ -24,7 +24,7 @@
                 <span>📅</span>
                 <div>
                     <strong id="appointmentsCount">0</strong>
-                    <small>agendamentos hoje</small>
+                    <small>agendamentos exibidos</small>
                 </div>
             </div>
     
@@ -46,13 +46,19 @@
         </section>
     
         <section class="card">
-            <div class="section-title">
+            <div class="section-title appointments-title">
                 <div>
-                    <h2>📅 Agenda do dia</h2>
-                    <p>Veja os atendimentos agendados para hoje.</p>
+                    <h2>📅 Agendamentos</h2>
+                    <p>Visualize os atendimentos por date e acompanhe os próximos horários.</p>
+                </div>
+
+                <div class="appointment-filters">
+                    <button class="filter-button" onclick="setAppointmentFilter('today')" id="filterToday">Hoje</button>
+                    <button class="filter-button" onclick="setAppointmentFilter('upcoming')" id="filterUpcoming">Próximos</button>
+                    <button class="filter-button active" onclick="setAppointmentFilter('all')" id="filterAll">Todos</button>
                 </div>
             </div>
-    
+
             <ul id="appointments"></ul>
         </section>
 
@@ -60,7 +66,7 @@
             <div class="section-title">
                 <div>
                     <h2>🏢 Dados da empresa</h2>
-                    <p>Atualiza as informações básicas do estabelecimento.</p>
+                    <p>Atualize as informações básicas do estabelecimento.</p>
                 </div>
             </div>
 
