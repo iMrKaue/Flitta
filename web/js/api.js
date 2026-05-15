@@ -23,24 +23,19 @@ async function apiFetch(path, options = {}) {
         return null;
     }
 
-    const contentType = res.headers.get("content-type");
+    const text = await res.text();
 
     if (!res.ok) {
-        let message = "Erro na requisição";
-
-        if (contentType && contentType.includes("application/json")) {
-            const errorData = await res.json();
-            message = errorData.error || errorData.message || message;
-        } else {
-            message = await res.text();
-        }
-
-        throw new Error(message);
+        throw new Error(text || "Erro na requisição");
     }
 
-    if (contentType && contentType.includes("application/json")) {
-        return res.json();
+    if (!text) {
+        return null;
     }
 
-    return null;
+    try {
+        return JSON.parse(text);
+    } catch (err) {
+        return text;
+    }
 }

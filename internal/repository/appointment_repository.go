@@ -172,11 +172,12 @@ func GetWorkingHours(clientID int) (start, end string, interval int, err error) 
 }
 
 func GetAppointmentsByClient(clientID int) ([]model.Appointment, error) {
-
 	rows, err := database.DB.Query(`
-		SELECT name, service, date, time
+		SELECT id, client_id, name, service, date, time, customer_phone
 		FROM appointments
 		WHERE client_id = $1
+		  And date::date >= CURRENT_DATE
+		ORDER BY date ASC, time ASC
 	`, clientID)
 
 	if err != nil {
@@ -184,18 +185,27 @@ func GetAppointmentsByClient(clientID int) ([]model.Appointment, error) {
 	}
 	defer rows.Close()
 
-	var appointment []model.Appointment
+	var appointments []model.Appointment
 
 	for rows.Next() {
 		var a model.Appointment
 
-		err := rows.Scan(&a.Name, &a.Service, &a.Date, &a.Time)
+		err := rows.Scan(
+			&a.ID,
+			&a.ClientID,
+			&a.Name,
+			&a.Service,
+			&a.Date,
+			&a.Time,
+			&a.CustomerPhone,
+		)
 		if err != nil {
 			return nil, err
 		}
 
-		appointment = append(appointment, a)
+		appointments = append(appointments, a)
 	}
 
-	return appointment, nil
+	return appointments, rows.Err()
+
 }
