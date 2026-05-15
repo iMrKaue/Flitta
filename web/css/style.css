@@ -407,3 +407,29 @@ li {
   font-size: 13px;
   line-height: 1.4;
 }
+
+.company-grid {
+  display: grid;
+  grid-template-columns: 1.2fr 1fr 1fr auto;
+  gap: 10px;
+  margin-top: 10px;
+}
+
+.company-grid input,
+.company-grid select {
+  min-width: 0;
+}
+
+.company-grid button {
+  white-space: nowrap;
+}
+
+@media (max-width: 900px) {
+  .company-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .company-grid button {
+    width: 100%;
+  }
+}

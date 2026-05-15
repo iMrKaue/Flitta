@@ -230,6 +230,79 @@ async function loadServices() {
     });
 }
 
+function businessTypeLabel(value) {
+    const labels = {
+        beauty: "Salão / Estética",
+        barber: "Barbearia",
+        clinic: "Clínica",
+        gym: "Academia / Personal",
+        petshop: "Petshop",
+        other: "Outro"
+    };
+
+    return labels[value] || "Outro";
+}
+
+async function loadCompanySettings() {
+    const companyStatus = document.getElementById("companyStatus");
+
+    try {
+        const data = await apiFetch("/admin/company/get");
+
+        if(!data) {
+            companyStatus.innerText = "Não foi possível carregar os dados da empresa.";
+            return;
+        }
+
+        document.getElementById("companyName").value = data.name || "";
+        document.getElementById("companyPhone").value = data.phone || "";
+        document.getElementById("companyBusinessType").value = data.business_type || "other";
+
+        companyStatus.innerText = `Empresa carregada: ${data.name || "sem nome"} • ${businessTypeLabel(data.business_type)}`;
+    } catch (err) {
+        companyStatus.innerText = "Não foi possível carregar os dados da empresa.";
+    }
+} 
+
+async function updateCompanySettings() {
+    const nameInput = document.getElementById("companyName");
+    const phoneInput = document.getElementById("companyPhone");
+    const businessTypeInput = document.getElementById("companyBusinessType");
+    const companyStatus = document.getElementById("companyStatus");
+
+    const name = nameInput.value.trim();
+    const phone = phoneInput.value.trim();
+    const business_type = businessTypeInput.value;
+
+    if(!name) {
+        alert("Digite o nome do estabelecimento.");
+        return;
+    }
+
+    if (!phone) {
+        alert("Digite o WhatsApp do estabelecimento.");
+        return;
+    }
+
+    try {
+        const data = await apiFetch("/admin/company/update", {
+            method: "PUT",
+            body: JSON.stringify({
+                name,
+                phone,
+                business_type
+            })
+        });
+
+        companyStatus.innerText = `Dados atualizados: ${data.name} • ${businessTypeLabel(data.business_type)}`;
+
+        alert("Dados da empresa salvos com sucesso.");
+    } catch (err) {
+        alert(err.message || "Não foi possível atualizar os dados da empresa.");
+    }
+}
+
+loadCompanySettings();
 loadServices();
 loadAppointments();
 loadWorkingHours();
