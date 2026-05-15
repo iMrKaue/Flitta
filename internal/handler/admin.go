@@ -6,8 +6,10 @@ import (
 	"flitta/internal/middleware"
 	"flitta/internal/repository"
 	"flitta/internal/service"
+	"flitta/internal/utils"
 	"fmt"
 	"net/http"
+	"strings"
 	"time"
 )
 
@@ -186,6 +188,66 @@ func GetWorkingHourHandler(w http.ResponseWriter, r *http.Request) {
 		"end":        end,
 		"interval":   interval,
 	})
+}
+
+func GetCompanySettingsHandler(w http.ResponseWriter, r *http.Request) {
+	clientID := r.Context().Value(middleware.ClientIDKey).(int)
+
+	client, err := repository.GetClientSettings(clientID)
+	if err != nil {
+		http.Error(w, "empresa não encontrada", http.StatusNotFound)
+		return
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	json.NewEncoder(w).Encode(client)
+}
+
+func UpdateCompanySettingsHandler(w http.ResponseWriter, r *http.Request) {
+	clientID := r.Context().Value(middleware.ClientIDKey).(int)
+
+	var req struct {
+		Name         string `json:"name"`
+		Phone        string `json:"phone"`
+		BusinessType string `json:"business_type"`
+	}
+
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		http.Error(w, "dados inválidos", http.StatusBadRequest)
+		return
+	}
+
+	req.Name = strings.TrimSpace(req.Name)
+	req.Phone = strings.TrimSpace(req.Phone)
+	req.BusinessType = strings.TrimSpace(req.BusinessType)
+
+	if req.Name == "" {
+		http.Error(w, "nome da empresa é obrigatório", http.StatusBadRequest)
+		return
+	}
+
+	if req.Phone == "" {
+		http.Error(w, "telefone da empresa é obrigatório", http.StatusBadRequest)
+		return
+	}
+
+	phone := utils.NormalizeCustomerPhone(req.Phone)
+	businessType := utils.NormalizeBusinessType(req.BusinessType)
+
+	err := repository.UpdateClientSettings(clientID, req.Name, phone, businessType)
+	if err != nil {
+		http.Error(w, "erro ao atualizar dados da empresa", http.StatusInternalServerError)
+		return
+	}
+
+	client, err := repository.GetClientSettings(clientID)
+	if err != nil {
+		http.Error(w, "erro ao buscar dados atualizados", http.StatusInternalServerError)
+		return
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	json.NewEncoder(w).Encode(client)
 }
 
 func DashboardToday(w http.ResponseWriter, r *http.Request) {

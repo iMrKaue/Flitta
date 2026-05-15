@@ -55,6 +55,46 @@
     
             <ul id="appointments"></ul>
         </section>
+
+        <section class="card">
+            <div class="section-title">
+                <div>
+                    <h2>🏢 Dados da empresa</h2>
+                    <p>Atualiza as informações básicas do estabelecimento.</p>
+                </div>
+            </div>
+
+            <div class="company-grid">
+                <input
+                    id="companyName"
+                    name="companyName"
+                    placeholder="Nome do estabelecimento"
+                    autocomplete="organization"
+                >
+
+                <input
+                    id="companyPhone"
+                    name="companyPhone"
+                    placeholder="WhatsApp do estabelecimento"
+                    autocomplete="tel"
+                >
+
+                <select id="companyBusinessType" name="companyBusinessType">
+                    <option value="beauty">Salão / Estética</option>
+                    <option value="barber">Barbearia</option>
+                    <option value="clinic">Clínica</option>
+                    <option value="gym">Academia / Personal</option>
+                    <option value="petshop">Petshop</option>
+                    <option value="other">Outro</option> 
+                </select>
+
+                <button onclick="updateCompanySettings()">Salvar Dados</button>
+            </div>
+
+            <p id="companyStatus" class="form-helper">
+                Carregando dados da empresa...
+            </p>
+        </section>
     
         <section class="card">
             <div class="section-title">
