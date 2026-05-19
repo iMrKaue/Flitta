@@ -9,4 +9,5 @@ type Appointment struct {
 	Date          string `json:"date"`
 	Time          string `json:"time"`
 	CustomerPhone string `json:"customer_phone,omitempty"`
+	ReminderSent  bool   `json:"reminder_sent,omitempty"`
 }

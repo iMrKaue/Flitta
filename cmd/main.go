@@ -29,8 +29,12 @@ func main() {
 
 	http.HandleFunc("/admin/hours/set", middleware.AuthMiddleware(handler.SetWorkingHoursHandler))
 	http.HandleFunc("/admin/hours/get", middleware.AuthMiddleware(handler.GetWorkingHourHandler))
+
 	http.HandleFunc("/admin/company/get", middleware.AuthMiddleware(handler.GetCompanySettingsHandler))
 	http.HandleFunc("/admin/company/update", middleware.AuthMiddleware(handler.UpdateCompanySettingsHandler))
+
+	http.HandleFunc("/admin/reminders/pending", middleware.AuthMiddleware(handler.GetPendingRemindersHandler))
+	http.HandleFunc("/admin/reminders/mark-sent", middleware.AuthMiddleware(handler.MarkReminderSentHandler))
 
 	http.HandleFunc("/auth/register", handler.RegisterHandler)
 	http.HandleFunc("/auth/login", handler.LoginHandler)
