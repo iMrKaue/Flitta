@@ -372,3 +372,61 @@ func MarkReminderSentHandler(w http.ResponseWriter, r *http.Request) {
 		"message": "lembrete marcado como enviado",
 	})
 }
+
+func SendReminderHandler(w http.ResponseWriter, r *http.Request) {
+	clientID := r.Context().Value(middleware.ClientIDKey).(int)
+
+	var req struct {
+		AppointmentID int `json:"appointment_id"`
+	}
+
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		http.Error(w, "dados inválidos", http.StatusBadRequest)
+		return
+	}
+
+	if req.AppointmentID <= 0 {
+		http.Error(w, "appointment_id é obrigatório", http.StatusBadRequest)
+		return
+	}
+
+	client, err := repository.GetClientSettings(clientID)
+	if err != nil {
+		http.Error(w, "empresa não encontrado", http.StatusNotFound)
+		return
+	}
+
+	appointment, err := repository.GetAppointmentByID(req.AppointmentID, clientID)
+	if err != nil {
+		http.Error(w, "agendamento não encontrado", http.StatusNotFound)
+		return
+	}
+
+	if appointment.ReminderSent {
+		http.Error(w, "lembrete já foi enviado", http.StatusBadRequest)
+		return
+	}
+
+	message := buildReminderMessage(client.Name, appointment)
+
+	result, err := service.SendWhatsAppMessage(appointment.CustomerPhone, message)
+	if err != nil {
+		http.Error(w, "erro ao enviar lembrete: "+err.Error(), http.StatusInternalServerError)
+		return
+	}
+
+	err = repository.MarkReminderAsSent(req.AppointmentID, clientID)
+	if err != nil {
+		http.Error(w, "lembrete enviado, mas erro ao atualizar status", http.StatusInternalServerError)
+		return
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	json.NewEncoder(w).Encode(map[string]interface{}{
+		"message":    "lembrete enviado com sucesso",
+		"provider":   result.Provider,
+		"to":         result.To,
+		"message_id": result.MessageID,
+		"simulated":  result.Simulated,
+	})
+}

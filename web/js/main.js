@@ -450,7 +450,7 @@ async function loadPendingReminders() {
                     <pre>${reminder.message}</pre>
                 </div>
 
-                <button onclick="markReminderSent(${reminder.id})">Marcar enviado</button>
+                <button onclick="sendReminder(${reminder.id})">Enviar lembrete</button>
             `;
 
             list.appendChild(li);
@@ -478,6 +478,34 @@ async function markReminderSent(appointmentID) {
         await loadPendingReminders();
     } catch (err) {
         alert(err.message || "Não foi possível marcar o lembrete como enviado.");
+    }
+}
+
+async function sendReminder(appointmentID) {
+    const confirmed = confirm("Enviar lembrete para este cliente?");
+
+    if (!confirmed) {
+        return;
+    }
+
+    try {
+        const result = await apiFetch("/admin/reminders/send", {
+            method: "POST",
+            body: JSON.stringify({
+                appointment_id: appointmentID
+            })
+        });
+
+        if (result && result.simulated) {
+            alert("Lembrete simulado com sucesso. Confira o terminal do backend.");
+        } else {
+            alert("Lembrete enviado com sucesso.");
+        }
+
+        await loadPendingReminders();
+        await loadAppointments();
+    } catch (err) {
+        alert(err.message || "Não foi possível enviar o lembrete.");
     }
 }
 
