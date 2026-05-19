@@ -275,3 +275,25 @@ func MarkReminderAsSent(appointmentID int, clientID int) error {
 
 	return nil
 }
+
+func GetAppointmentByID(appointmentID int, clientID int) (model.Appointment, error) {
+	var a model.Appointment
+
+	err := database.DB.QueryRow(`
+		SELECT id, client_id, name, service, date, time, customer_phone, reminder_sent
+		FROM appointments
+		WHERE id = $1
+		  AND client_id = $2
+	`, appointmentID, clientID).Scan(
+		&a.ID,
+		&a.ClientID,
+		&a.Name,
+		&a.Service,
+		&a.Date,
+		&a.Time,
+		&a.CustomerPhone,
+		&a.ReminderSent,
+	)
+
+	return a, err
+}
