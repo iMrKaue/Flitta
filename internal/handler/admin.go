@@ -4,11 +4,13 @@ import (
 	"encoding/json"
 	"flitta/internal/database"
 	"flitta/internal/middleware"
+	"flitta/internal/model"
 	"flitta/internal/repository"
 	"flitta/internal/service"
 	"flitta/internal/utils"
 	"fmt"
 	"net/http"
+	"strconv"
 	"strings"
 	"time"
 )
@@ -268,4 +270,105 @@ func DashboardToday(w http.ResponseWriter, r *http.Request) {
 	}
 
 	json.NewEncoder(w).Encode(list)
+}
+
+type ReminderResponse struct {
+	ID            int    `json:"id"`
+	Name          string `json:"name"`
+	Service       string `json:"service"`
+	Date          string `json:"date"`
+	Time          string `json:"time"`
+	CustomerPhone string `json:"customer_phone"`
+	Message       string `json:"message"`
+}
+
+func formatReminderDate(date string) string {
+	parts := strings.Split(date, "-")
+	if len(parts) != 3 {
+		return date
+	}
+
+	return parts[2] + "/" + parts[1] + "/" + parts[0]
+}
+
+func buildReminderMessage(companyName string, appointment model.Appointment) string {
+	return fmt.Sprintf(
+		"Olá, %s! 😊\nPassando para lembrar do seu horário em %s.\n\n📌 Serviço: %s\n📅 Data: %s\n🕒 Horário: %s\n\nSe precisar remarcar ou cancelar, responda esta mensagem.",
+		appointment.Name,
+		companyName,
+		appointment.Service,
+		formatReminderDate(appointment.Date),
+		appointment.Time,
+	)
+}
+
+func GetPendingRemindersHandler(w http.ResponseWriter, r *http.Request) {
+	clientID := r.Context().Value(middleware.ClientIDKey).(int)
+
+	hoursBefore := 24
+
+	if rawHours := r.URL.Query().Get("hours"); rawHours != "" {
+		parsedHours, err := strconv.Atoi(rawHours)
+		if err == nil && parsedHours > 0 {
+			hoursBefore = parsedHours
+		}
+	}
+
+	client, err := repository.GetClientSettings(clientID)
+	if err != nil {
+		http.Error(w, "empresa não encontrada", http.StatusNotFound)
+		return
+	}
+
+	appointments, err := repository.GetPendingReminderAppointments(clientID, hoursBefore)
+	if err != nil {
+		http.Error(w, "erro ao buscar lembretes pendentes", http.StatusInternalServerError)
+		return
+	}
+
+	var reminders []ReminderResponse
+
+	for _, appointment := range appointments {
+		reminders = append(reminders, ReminderResponse{
+			ID:            appointment.ID,
+			Name:          appointment.Name,
+			Service:       appointment.Service,
+			Date:          appointment.Date,
+			Time:          appointment.Time,
+			CustomerPhone: appointment.CustomerPhone,
+			Message:       buildReminderMessage(client.Name, appointment),
+		})
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	json.NewEncoder(w).Encode(reminders)
+}
+
+func MarkReminderSentHandler(w http.ResponseWriter, r *http.Request) {
+	clientID := r.Context().Value(middleware.ClientIDKey).(int)
+
+	var req struct {
+		AppointmentID int `json:"appointment_id"`
+	}
+
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		http.Error(w, "dados inválidos", http.StatusBadRequest)
+		return
+	}
+
+	if req.AppointmentID <= 0 {
+		http.Error(w, "appointment_id é obrigatório", http.StatusBadRequest)
+		return
+	}
+
+	err := repository.MarkReminderAsSent(req.AppointmentID, clientID)
+	if err != nil {
+		http.Error(w, "erro ao marcar lembrete como enviado", http.StatusInternalServerError)
+		return
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	json.NewEncoder(w).Encode(map[string]string{
+		"message": "lembrete marcado como enviado",
+	})
 }

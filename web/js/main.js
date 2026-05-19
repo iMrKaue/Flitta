@@ -413,7 +413,76 @@ async function updateCompanySettings() {
     }
 }
 
+async function loadPendingReminders() {
+    const list = document.getElementById("reminders");
+    const status = document.getElementById("remindersStatus");
+
+    list.innerHTML = "";
+    status.innerText = "Carregando lembretes pendentes...";
+
+    try {
+        const reminders = await apiFetch("/admin/reminders/pending?hours=24");
+
+        if (!reminders || reminders.length === 0) {
+            status.innerText = "Nenhum lembrete pendente para as próximas 24 horas.";
+
+            const li = document.createElement("li");
+            li.className = "empty-state";
+            li.innerHTML = `
+                <strong>Nenhum lembrete pendente.</strong>
+                <span>Quando houver horários próximos sem lembrete enviado, eles aparecerão aqui.</span>
+            `;
+            list.appendChild(li);
+            return;
+        }
+
+        status.innerText = `${reminders.length} lembrete(s) pendente(s).`;
+
+        reminders.forEach(reminder => {
+            const li = document.createElement("li");
+            li.className = "reminder-item";
+
+            li.innerHTML = `
+                <div class="reminder-info">
+                    <strong>${reminder.name} — ${reminder.service}</strong>
+                    <span>📅 ${formatAppointmentDate(reminder.date)} às ${reminder.time}</span>
+                    <small>📞 ${formatPhone(reminder.customer_phone)}</small>
+                    <pre>${reminder.message}</pre>
+                </div>
+
+                <button onclick="markReminderSent(${reminder.id})">Marcar enviado</button>
+            `;
+
+            list.appendChild(li);
+        });
+    } catch (err) {
+        status.innerText = "Não foi possível carregar os lembretes pendentes.";
+    }
+}
+
+async function markReminderSent(appointmentID) {
+    const confirmed = confirm("Marcar este lembrete como enviado?");
+
+    if (!confirmed) {
+        return;
+    }
+
+    try {
+        await apiFetch("/admin/reminders/mark-sent", {
+            method: "POST",
+            body: JSON.stringify({
+                appointment_id: appointmentID
+            })
+        });
+
+        await loadPendingReminders();
+    } catch (err) {
+        alert(err.message || "Não foi possível marcar o lembrete como enviado.");
+    }
+}
+
 loadCompanySettings();
 loadServices();
 loadAppointments();
 loadWorkingHours();
+loadPendingReminders();

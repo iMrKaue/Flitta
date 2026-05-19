@@ -209,3 +209,69 @@ func GetAppointmentsByClient(clientID int) ([]model.Appointment, error) {
 	return appointments, rows.Err()
 
 }
+
+func GetPendingReminderAppointments(clientID int, hoursBefore int) ([]model.Appointment, error) {
+	rows, err := database.DB.Query(`
+		SELECT id, client_id, name, service, date, time, customer_phone, reminder_sent
+		FROM appointments
+		WHERE client_id = $1
+		  AND COALESCE(reminder_sent, false) = false
+		  AND (date::date + time::time) >= NOW()
+		  AND (date::date + time::time) <= NOW() + ($2::text || ' hours')::interval
+		ORDER BY date ASC, time ASC
+		`, clientID, hoursBefore)
+
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	var reminders []model.Appointment
+
+	for rows.Next() {
+		var a model.Appointment
+
+		err := rows.Scan(
+			&a.ID,
+			&a.ClientID,
+			&a.Name,
+			&a.Service,
+			&a.Date,
+			&a.Time,
+			&a.CustomerPhone,
+			&a.ReminderSent,
+		)
+		if err != nil {
+			return nil, err
+		}
+
+		reminders = append(reminders, a)
+	}
+
+	return reminders, rows.Err()
+}
+
+func MarkReminderAsSent(appointmentID int, clientID int) error {
+	result, err := database.DB.Exec(`
+		UPDATE appointments
+		SET reminder_sent = true,
+			reminder_sent_at = NOW()
+		WHERE id = $1
+			AND client_id = $2
+	`, appointmentID, clientID)
+
+	if err != nil {
+		return err
+	}
+
+	rowsAffected, err := result.RowsAffected()
+	if err != nil {
+		return err
+	}
+
+	if rowsAffected == 0 {
+		return fmt.Errorf("agendamento não encontrado")
+	}
+
+	return nil
+}

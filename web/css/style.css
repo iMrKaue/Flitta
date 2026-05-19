@@ -552,3 +552,68 @@ li {
     box-sizing: border-box;
   }
 }
+
+.reminders-title {
+  gap: 16px;
+  align-items: flex-start;
+}
+
+.reminder-item {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 16px;
+  background: #f9fafb;
+  border: 1px solid #eef0f3;
+  border-radius: 12px;
+  padding: 12px;
+  margin-bottom: 10px;
+}
+
+.reminder-info {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  flex: 1;
+}
+
+.reminder-info strong {
+  color: #111827;
+}
+
+.reminder-info span,
+.reminder-info small {
+  color: #6b7280;
+  font-size: 14px;
+}
+
+.reminder-info pre {
+  white-space: pre-wrap;
+  background: #ffffff;
+  border: 1px solid #e5e7eb;
+  border-radius: 10px;
+  padding: 10px;
+  color: #374151;
+  font-family: Arial, sans-serif;
+  font-size: 13px;
+  line-height: 1.5;
+  margin: 4px 0 0;
+}
+
+@media (max-width: 700px) {
+  .reminders-title {
+    flex-direction: column;
+  }
+
+  .reminders-title button {
+    width: 100%;
+  }
+
+  .reminder-item {
+    flex-direction: column;
+  }
+
+  .reminder-item button {
+    width: 100%;
+  }
+}
