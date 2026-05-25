@@ -297,3 +297,59 @@ func GetAppointmentByID(appointmentID int, clientID int) (model.Appointment, err
 
 	return a, err
 }
+
+type PendingReminderWithCompany struct {
+	model.Appointment
+	CompanyName string
+}
+
+func GetAllPendingReminderAppointments(hoursBefore int) ([]PendingReminderWithCompany, error) {
+	rows, err := database.DB.Query(`
+		SELECT 
+			a.id,
+			a.client_id,
+			a.name,
+			a.service,
+			a.date,
+			a.time,
+			a.customer_phone,
+			a.reminder_sent,
+			c.name
+		FROM appointments a
+		INNER JOIN clients c ON c.id = a.client_id
+		WHERE COALESCE(a.reminder_sent, false) = false
+		  AND (a.date::date + a.time::time) >= NOW()
+		  AND (a.date::date + a.time::time) <= NOW() + ($1::text || ' hours')::interval
+		ORDER BY a.date ASC, a.time ASC
+	`, hoursBefore)
+
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	var reminders []PendingReminderWithCompany
+
+	for rows.Next() {
+		var reminder PendingReminderWithCompany
+
+		err := rows.Scan(
+			&reminder.ID,
+			&reminder.ClientID,
+			&reminder.Name,
+			&reminder.Service,
+			&reminder.Date,
+			&reminder.Time,
+			&reminder.CustomerPhone,
+			&reminder.ReminderSent,
+			&reminder.CompanyName,
+		)
+		if err != nil {
+			return nil, err
+		}
+
+		reminders = append(reminders, reminder)
+	}
+
+	return reminders, rows.Err()
+}

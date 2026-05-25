@@ -4,8 +4,10 @@ import (
 	"flitta/internal/database"
 	"flitta/internal/handler"
 	"flitta/internal/middleware"
+	"flitta/internal/service"
 	"log"
 	"net/http"
+	"time"
 
 	"github.com/joho/godotenv"
 )
@@ -19,6 +21,9 @@ func main() {
 	}
 
 	database.ConnectDB()
+
+	reminderScheduler := service.NewReminderScheduler(1*time.Minute, 24)
+	reminderScheduler.Start()
 
 	http.HandleFunc("/webhook", handler.WebhookHandler)
 	http.HandleFunc("/appointments", middleware.AuthMiddleware(handler.GetAppointmentsHandler))
