@@ -7,6 +7,8 @@ import (
 	"flitta/internal/service"
 	"log"
 	"net/http"
+	"os"
+	"strings"
 	"time"
 
 	"github.com/joho/godotenv"
@@ -22,8 +24,12 @@ func main() {
 
 	database.ConnectDB()
 
-	reminderScheduler := service.NewReminderScheduler(1*time.Minute, 24)
-	reminderScheduler.Start()
+	if strings.EqualFold(os.Getenv("REMINDER_SCHEDULER_ENABLED"), "true") {
+		reminderScheduler := service.NewReminderScheduler(1*time.Minute, 24)
+		reminderScheduler.Start()
+	} else {
+		log.Println("Scheduler de lembretes desativado por configuração")
+	}
 
 	http.HandleFunc("/webhook", handler.WebhookHandler)
 	http.HandleFunc("/appointments", middleware.AuthMiddleware(handler.GetAppointmentsHandler))

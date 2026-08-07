@@ -409,7 +409,12 @@ func SendReminderHandler(w http.ResponseWriter, r *http.Request) {
 
 	message := buildReminderMessage(client.Name, appointment)
 
-	result, err := service.SendWhatsAppMessage(appointment.CustomerPhone, message)
+	result, err := service.SendAppointmentReminder(
+		appointment.CustomerPhone,
+		message,
+		formatReminderDate(appointment.Date),
+		appointment.Time,
+	)
 	if err != nil {
 		http.Error(w, "erro ao enviar lembrete: "+err.Error(), http.StatusInternalServerError)
 		return

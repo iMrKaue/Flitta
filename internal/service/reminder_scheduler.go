@@ -51,7 +51,12 @@ func (s *ReminderScheduler) ProcessPendingReminders() {
 	for _, reminder := range reminders {
 		message := BuildScheduledReminderMessage(reminder.CompanyName, reminder.Appointment)
 
-		_, err := SendWhatsAppMessage(reminder.CustomerPhone, message)
+		_, err := SendAppointmentReminder(
+			reminder.CustomerPhone,
+			message,
+			formatScheduledReminderDate(reminder.Date),
+			reminder.Time,
+		)
 		if err != nil {
 			log.Printf("Erro ao enviar lembrete automático do agendamento %d: %v", reminder.ID, err)
 			continue
