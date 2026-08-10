@@ -9,10 +9,13 @@ import (
 )
 
 func GetAppointments(clientID int) []model.Appointment {
-	rows, err := database.DB.Query(
-		"SELECT name, service, date, time FROM appointments WHERE client_id = $1",
-		clientID,
-	)
+	rows, err := database.DB.Query(`
+	    SELECT name, service, date, time
+		FROM appointments
+		WHERE client_id = $1
+		  AND status IN ('scheduled', 'confirmed')
+	`, clientID)
+
 	if err != nil {
 		fmt.Println("ERRO QUERY:", err)
 		return []model.Appointment{}
@@ -37,7 +40,9 @@ func GetTodayAppointments(clientID int) ([]model.Appointment, error) {
 	rows, err := database.DB.Query(`
 		SELECT id, name, service, date, time
 		FROM appointments
-		WHERE client_id = $1 AND date = $2
+		WHERE client_id = $1
+		  AND date = $2
+		  AND status in ('scheduled', 'confirmed')
 		ORDER BY time ASC
 	`, clientID, today)
 
@@ -84,9 +89,11 @@ type AppointmentTimeRow struct {
 
 func ListAppointmentSlotsForDate(clientID int, date string) ([]AppointmentTimeRow, error) {
 	rows, err := database.DB.Query(`
-		SELECT time, service
+	    SELECT time, service
 		FROM appointments
-		WHERE client_id = $1 AND date = $2
+		WHERE client_id = $1
+		   AND date = $2
+		   AND status IN ('scheduled', 'confirmed')
 	`, clientID, date)
 	if err != nil {
 		return nil, err
@@ -108,7 +115,10 @@ func ListAppointmentSlotsForDateExcept(clientID int, date string, exceptID int) 
 	rows, err := database.DB.Query(`
 		SELECT time, service
 		FROM appointments
-		WHERE client_id = $1 AND date = $2 AND id != $3
+		WHERE client_id = $1
+		  AND date = $2
+		  AND id <> $3
+		  AND status IN ('scheduled', 'confirmed')
 	`, clientID, date, exceptID)
 	if err != nil {
 		return nil, err
@@ -126,40 +136,71 @@ func ListAppointmentSlotsForDateExcept(clientID int, date string, exceptID int) 
 	return list, rows.Err()
 }
 
-func GetAppointmentForReschedule(id int, customerPhone string) (date string, clientID int, service string, err error) {
+func GetAppointmentForReschedule(
+	id int,
+	customerPhone string,
+) (date string, clientID int, service string, err error) {
 	err = database.DB.QueryRow(`
-		SELECT date, client_id, service
+	    SELECT date, client_id, service
 		FROM appointments
-		WHERE id = $1 AND customer_phone = $2
+		WHERE id = $1
+		  AND customer_phone = $2
+		  AND status IN ('scheduled', 'confirmed')
 	`, id, customerPhone).Scan(&date, &clientID, &service)
+
 	return
 }
 
 func UpdateAppointmentTimeByID(id int, newTime string) error {
-	_, err := database.DB.Exec(`
-		UPDATE appointments
-		SET time = $1
+	result, err := database.DB.Exec(`
+	    UPDATE appointments
+		SET time = $1,
+		    updated_at = CURRENT_TIMESTAMP
 		WHERE id = $2
+	      AND status IN ('scheduled', 'confirmed')
 	`, newTime, id)
 
 	if err != nil {
 		if strings.Contains(err.Error(), "unique_schedule") {
 			return fmt.Errorf("horário já ocupado")
 		}
+
 		return err
 	}
+
+	rowsAffected, err := result.RowsAffected()
+	if err != nil {
+		return err
+	}
+
+	if rowsAffected == 0 {
+		return fmt.Errorf("agendamento não encontrado ou indisponível")
+	}
+
 	return nil
 }
 
-func DeleteCustomerAppointment(id, clientID int, customerPhone string) (rowsAffected int64, err error) {
-	res, err := database.DB.Exec(`
-		DELETE FROM appointments
-		WHERE id = $1 AND client_id = $2 AND customer_phone = $3
-	`, id, clientID, customerPhone)
+func CancelCustomerAppointment(
+	id int,
+	clientID int,
+	customerPhone string,
+) (rowsAffected int64, err error) {
+	result, err := database.DB.Exec(`
+	    UPDATE appointments
+		SET status = 'cancelled',
+		    cancelled_at = CURRENT_TIMESTAMP,
+			updated_at = CURRENT_TIMESTAMP
+		WHERE id = $1
+		  AND client_id = $2
+		  AND customer_phone = $3
+		  AND status IN ('scheduled', 'confirmed')
+		  `, id, clientID, customerPhone)
+
 	if err != nil {
 		return 0, err
 	}
-	return res.RowsAffected()
+
+	return result.RowsAffected()
 }
 
 func GetWorkingHours(clientID int) (start, end string, interval int, err error) {
@@ -176,7 +217,8 @@ func GetAppointmentsByClient(clientID int) ([]model.Appointment, error) {
 		SELECT id, client_id, name, service, date, time, customer_phone
 		FROM appointments
 		WHERE client_id = $1
-		  And date::date >= CURRENT_DATE
+		  AND date::date >= CURRENT_DATE
+		  AND status IN ('scheduled', 'confirmed')
 		ORDER BY date ASC, time ASC
 	`, clientID)
 
@@ -215,6 +257,7 @@ func GetPendingReminderAppointments(clientID int, hoursBefore int) ([]model.Appo
 		SELECT id, client_id, name, service, date, time, customer_phone, reminder_sent
 		FROM appointments
 		WHERE client_id = $1
+		  AND status IN ('scheduled', 'confirmed')
 		  AND COALESCE(reminder_sent, false) = false
 		  AND (date::date + time::time) >= NOW()
 		  AND (date::date + time::time) <= NOW() + ($2::text || ' hours')::interval
@@ -255,9 +298,11 @@ func MarkReminderAsSent(appointmentID int, clientID int) error {
 	result, err := database.DB.Exec(`
 		UPDATE appointments
 		SET reminder_sent = true,
-			reminder_sent_at = NOW()
+			reminder_sent_at = NOW(),
+			updated_at = CURRENT_TIMESTAMP
 		WHERE id = $1
 			AND client_id = $2
+			AND status IN ('scheduled', 'confirmed')
 	`, appointmentID, clientID)
 
 	if err != nil {
@@ -270,7 +315,7 @@ func MarkReminderAsSent(appointmentID int, clientID int) error {
 	}
 
 	if rowsAffected == 0 {
-		return fmt.Errorf("agendamento não encontrado")
+		return fmt.Errorf("agendamento não encontrado ou indisponível")
 	}
 
 	return nil
@@ -284,6 +329,7 @@ func GetAppointmentByID(appointmentID int, clientID int) (model.Appointment, err
 		FROM appointments
 		WHERE id = $1
 		  AND client_id = $2
+		  AND status IN ('scheduled', 'confirmed')
 	`, appointmentID, clientID).Scan(
 		&a.ID,
 		&a.ClientID,
@@ -318,6 +364,7 @@ func GetAllPendingReminderAppointments(hoursBefore int) ([]PendingReminderWithCo
 		FROM appointments a
 		INNER JOIN clients c ON c.id = a.client_id
 		WHERE COALESCE(a.reminder_sent, false) = false
+		  AND a.status IN ('scheduled', 'confirmed')
 		  AND (a.date::date + a.time::time) >= NOW()
 		  AND (a.date::date + a.time::time) <= NOW() + ($1::text || ' hours')::interval
 		ORDER BY a.date ASC, a.time ASC

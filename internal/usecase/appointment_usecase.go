@@ -248,7 +248,7 @@ func (u *AppointmentUsecase) CancelAppointment(
 
 	phone := utils.NormalizeCustomerPhone(customerPhone)
 
-	n, err := repository.DeleteCustomerAppointment(id, clientID, phone)
+	n, err := repository.CancelCustomerAppointment(id, clientID, phone)
 	if err != nil {
 		return err
 	}
@@ -356,6 +356,7 @@ func (u *AppointmentUsecase) GetAppointmentsByCustomerPhone(
 		WHERE client_id = $1
 		  AND customer_phone = $2
 		  AND date::date >= CURRENT_DATE
+		  AND status IN ('scheduled', 'confirmed')
 		ORDER BY date ASC, time ASC
 	`, clientID, phone)
 
