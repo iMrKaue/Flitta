@@ -65,7 +65,7 @@ func DeleteSession(phone string) {
 
 func GetServices(clientID int) []model.SalonService {
 	rows, err := database.DB.Query(`
-		SELECT id, name, COALESCE(duration, 30)
+		SELECT id, name, COALESCE(duration, 30), COALESCE(price, 0)
 		FROM services
 		WHERE client_id = $1
 		ORDER BY id ASC
@@ -81,7 +81,12 @@ func GetServices(clientID int) []model.SalonService {
 	for rows.Next() {
 		var s model.SalonService
 
-		err := rows.Scan(&s.ID, &s.Name, &s.Duration)
+		err := rows.Scan(
+			&s.ID,
+			&s.Name,
+			&s.Duration,
+			&s.Price,
+		)
 		if err != nil {
 			continue
 		}

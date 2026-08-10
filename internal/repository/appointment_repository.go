@@ -66,16 +66,48 @@ func GetTodayAppointments(clientID int) ([]model.Appointment, error) {
 }
 
 func CreateAppointment(clientID int, phone, name, service, date, time string) error {
-	_, err := database.DB.Exec(`
-		INSERT INTO appointments (client_id, customer_phone, name, service, date, time)
-		VALUES ($1, $2, $3, $4, $5, $6)
+	result, err := database.DB.Exec(`
+		INSERT INTO appointments (
+			client_id,
+			customer_phone,
+			name,
+			service,
+			date,
+			time,
+			price_snapshot,
+			duration_snapshot
+		)
+		SELECT
+			$1,
+			$2,
+			$3,
+			s.name,
+			$5,
+			$6,
+			COALESCE(s.price, 0),
+			COALESCE(s.duration, 30)
+		FROM services AS s
+		WHERE s.client_id = $1
+			AND LOWER(s.name) = LOWER($4)
+		ORDER BY s.id
+		LIMIT 1
 	`, clientID, phone, name, service, date, time)
 
 	if err != nil {
 		if strings.Contains(err.Error(), "unique_schedule") {
 			return fmt.Errorf("horário já ocupado")
 		}
+
 		return err
+	}
+
+	rowsAffected, err := result.RowsAffected()
+	if err != nil {
+		return err
+	}
+
+	if rowsAffected == 0 {
+		return fmt.Errorf("serviço não encontrado")
 	}
 
 	return nil

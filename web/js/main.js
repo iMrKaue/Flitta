@@ -172,9 +172,11 @@ function logout() {
 async function createService() {
     const nameInput = document.getElementById("newService");
     const durationInput = document.getElementById("newServiceDuration");
+    const priceInput = document.getElementById("newServicePrice");
 
     const name = nameInput.value.trim();
     const duration = parseInt(durationInput.value);
+    const price = Number(priceInput.value);
 
     if (!name) {
         alert("Digite o nome do serviço ou atendimento.");
@@ -186,17 +188,24 @@ async function createService() {
         return;
     }
 
+    if (priceInput.value === "" || Number.isNaN(price) || price < 0) {
+        alert("Digite um preço válido para o serviço.");
+        return;
+    }
+
     try {
         await apiFetch("/admin/service/create", {
             method: "POST",
             body: JSON.stringify({
                 name,
-                duration
+                duration,
+                price
             })
         });
 
         nameInput.value = "";
         durationInput.value = "";
+        priceInput.value = "";
 
         await loadServices();
     } catch (err) {
@@ -328,11 +337,17 @@ async function loadServices() {
         li.className = "list-item";
 
         const duration = s.duration || 30;
+        const price = Number(s.price || 0);
+
+        const formattedPrice = price.toLocaleString("pt-BR", {
+            style: "currency",
+            currency: "BRL"
+        });
 
         li.innerHTML = `
             <div class="service-info">
                 <strong>${s.name}</strong>
-                <small>${duration} minutos de duração</small>
+                <small>${duration} minutos de duração • ${formattedPrice}</small>
             </div>
             <button class="danger-button" onclick="deleteService('${s.name}')">Excluir</button>
         `;
