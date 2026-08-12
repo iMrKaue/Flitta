@@ -248,12 +248,52 @@ func (u *AppointmentUsecase) CancelAppointment(
 
 	phone := utils.NormalizeCustomerPhone(customerPhone)
 
-	n, err := repository.DeleteCustomerAppointment(id, clientID, phone)
+	n, err := repository.CancelCustomerAppointment(id, clientID, phone)
 	if err != nil {
 		return err
 	}
 	if n == 0 {
 		return fmt.Errorf("agendamento não encontrado")
+	}
+
+	return nil
+}
+
+func (u *AppointmentUsecase) CompleteAppointment(
+	id int,
+	clientID int,
+) error {
+	rowsAffected, err := repository.UpdateAppointmentOutcome(
+		id,
+		clientID,
+		"completed",
+	)
+	if err != nil {
+		return err
+	}
+
+	if rowsAffected == 0 {
+		return fmt.Errorf("agendamento não encontrado ou indisponível")
+	}
+
+	return nil
+}
+
+func (u *AppointmentUsecase) MarkAppointmentNoShow(
+	id int,
+	clientID int,
+) error {
+	rowsAffected, err := repository.UpdateAppointmentOutcome(
+		id,
+		clientID,
+		"no_show",
+	)
+	if err != nil {
+		return err
+	}
+
+	if rowsAffected == 0 {
+		return fmt.Errorf("agendamento não encontrado ou indisponível")
 	}
 
 	return nil
@@ -355,7 +395,8 @@ func (u *AppointmentUsecase) GetAppointmentsByCustomerPhone(
 		FROM appointments
 		WHERE client_id = $1
 		  AND customer_phone = $2
-		  AND date::date >= CURRENT_DATE
+		  AND date::date >= (NOW() AT TIME ZONE 'America/Sao_Paulo')::date
+		  AND status IN ('scheduled', 'confirmed')
 		ORDER BY date ASC, time ASC
 	`, clientID, phone)
 

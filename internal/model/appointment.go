@@ -10,4 +10,5 @@ type Appointment struct {
 	Time          string `json:"time"`
 	CustomerPhone string `json:"customer_phone,omitempty"`
 	ReminderSent  bool   `json:"reminder_sent,omitempty"`
+	Status        string `json:"status,omitempty"`
 }

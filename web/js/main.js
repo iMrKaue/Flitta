@@ -68,6 +68,29 @@ function formatPhone(value) {
     return value;
 }
 
+function canUpdateAppointmentOutcome(dateValue, timeValue) {
+    const date = normalizeAppointmentDate(dateValue);
+
+    if (!date || !timeValue) {
+        return false;
+    }
+
+    const [year, month, day] = date.split("-").map(Number);
+    const [hour, minute] = timeValue.substring(0, 5).split(":").map(Number);
+
+    const appointmentDateTime = new Date(
+        year,
+        month - 1,
+        day,
+        hour,
+        minute,
+        0,
+        0
+    );
+
+    return appointmentDateTime <= new Date();
+}
+
 function getFilteredAppointments() {
     const today = todayISO();
 
@@ -142,6 +165,14 @@ function renderAppointments(errorMessage = "") {
         const date = a.date || a.Date || "";
         const time = a.time || a.Time || "";
         const phone = a.customer_phone || a.CustomerPhone || "";
+        const id = a.id || a.ID;
+        const status = a.status || a.Status || "scheduled";
+
+        const canUpdateOutcome = canUpdateAppointmentOutcome(date, time);
+
+        const statusLabel = status === "confirmed"
+            ? "Confirmado"
+            : "Agendado";
 
         li.innerHTML = `
             <div class="appointment-main">
@@ -157,11 +188,77 @@ function renderAppointments(errorMessage = "") {
                 </div>
             </div>
 
-            <span class="appointment-badge">Agendado</span>
+            <div class="appointment-side">
+    <span class="appointment-badge">${statusLabel}</span>
+
+    ${canUpdateOutcome && id ? `
+        <div class="appointment-actions">
+            <button
+                type="button"
+                class="complete-button"
+                onclick="completeAppointment(${id})"
+            >
+                Concluir
+            </button>
+
+            <button
+                type="button"
+                class="danger-button"
+                onclick="markAppointmentNoShow(${id})"
+            >
+                Não compareceu
+            </button>
+        </div>
+    ` : ""}
+</div>
         `;
 
         list.appendChild(li);
     });
+}
+
+async function completeAppointment(appointmentID) {
+    const confirmed = confirm("Confirmar que este atendimento foi concluído?");
+
+    if (!confirmed) {
+        return;
+    }
+
+    try {
+        await apiFetch("/admin/appointments/complete", {
+            method: "POST",
+            body: JSON.stringify({
+                id: appointmentID
+            })
+        });
+
+        await loadAppointments();
+        await loadPendingReminders();
+    } catch (err) {
+        alert(err.message || "Não foi possível concluir o agendamento.");
+    }
+}
+
+async function markAppointmentNoShow(appointmentID) {
+    const confirmed = confirm("Confirmar que o cliente não compareceu");
+
+    if (!confirmed) {
+        return;
+    }
+
+    try {
+        await apiFetch("/admin/appointments/no-show", {
+            method: "POST",
+            body: JSON.stringify({
+                id: appointmentID
+            })
+        });
+
+        await loadAppointments();
+        await loadPendingReminders();
+    } catch (err) {
+        alert(err.message || "Não foi possível registrar a ausência.");
+    }
 }
 
 function logout() {
@@ -172,9 +269,11 @@ function logout() {
 async function createService() {
     const nameInput = document.getElementById("newService");
     const durationInput = document.getElementById("newServiceDuration");
+    const priceInput = document.getElementById("newServicePrice");
 
     const name = nameInput.value.trim();
     const duration = parseInt(durationInput.value);
+    const price = Number(priceInput.value);
 
     if (!name) {
         alert("Digite o nome do serviço ou atendimento.");
@@ -186,17 +285,24 @@ async function createService() {
         return;
     }
 
+    if (priceInput.value === "" || Number.isNaN(price) || price < 0) {
+        alert("Digite um preço válido para o serviço.");
+        return;
+    }
+
     try {
         await apiFetch("/admin/service/create", {
             method: "POST",
             body: JSON.stringify({
                 name,
-                duration
+                duration,
+                price
             })
         });
 
         nameInput.value = "";
         durationInput.value = "";
+        priceInput.value = "";
 
         await loadServices();
     } catch (err) {
@@ -328,11 +434,17 @@ async function loadServices() {
         li.className = "list-item";
 
         const duration = s.duration || 30;
+        const price = Number(s.price || 0);
+
+        const formattedPrice = price.toLocaleString("pt-BR", {
+            style: "currency",
+            currency: "BRL"
+        });
 
         li.innerHTML = `
             <div class="service-info">
                 <strong>${s.name}</strong>
-                <small>${duration} minutos de duração</small>
+                <small>${duration} minutos de duração • ${formattedPrice}</small>
             </div>
             <button class="danger-button" onclick="deleteService('${s.name}')">Excluir</button>
         `;
