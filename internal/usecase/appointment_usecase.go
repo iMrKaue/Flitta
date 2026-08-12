@@ -395,7 +395,7 @@ func (u *AppointmentUsecase) GetAppointmentsByCustomerPhone(
 		FROM appointments
 		WHERE client_id = $1
 		  AND customer_phone = $2
-		  AND date::date >= CURRENT_DATE
+		  AND date::date >= (NOW() AT TIME ZONE 'America/Sao_Paulo')::date
 		  AND status IN ('scheduled', 'confirmed')
 		ORDER BY date ASC, time ASC
 	`, clientID, phone)

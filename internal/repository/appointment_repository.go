@@ -275,7 +275,7 @@ func GetAppointmentsByClient(clientID int) ([]model.Appointment, error) {
 		SELECT id, client_id, name, service, date, time, customer_phone, status
 		FROM appointments
 		WHERE client_id = $1
-		  AND date::date >= CURRENT_DATE
+		  AND date::date >= (NOW() AT TIME ZONE 'America/Sao_Paulo')::date
 		  AND status IN ('scheduled', 'confirmed')
 		ORDER BY date ASC, time ASC
 	`, clientID)
@@ -318,8 +318,8 @@ func GetPendingReminderAppointments(clientID int, hoursBefore int) ([]model.Appo
 		WHERE client_id = $1
 		  AND status IN ('scheduled', 'confirmed')
 		  AND COALESCE(reminder_sent, false) = false
-		  AND (date::date + time::time) >= NOW()
-		  AND (date::date + time::time) <= NOW() + ($2::text || ' hours')::interval
+		  AND (date::date + time::time) >= (NOW() AT TIME ZONE 'America/Sao_Paulo')
+		  AND (date::date + time::time) <= (NOW() AT TIME ZONE 'America/Sao_Paulo') + ($2::text || ' hours')::interval
 		ORDER BY date ASC, time ASC
 		`, clientID, hoursBefore)
 
@@ -424,8 +424,8 @@ func GetAllPendingReminderAppointments(hoursBefore int) ([]PendingReminderWithCo
 		INNER JOIN clients c ON c.id = a.client_id
 		WHERE COALESCE(a.reminder_sent, false) = false
 		  AND a.status IN ('scheduled', 'confirmed')
-		  AND (a.date::date + a.time::time) >= NOW()
-		  AND (a.date::date + a.time::time) <= NOW() + ($1::text || ' hours')::interval
+		  AND (a.date::date + a.time::time) >= (NOW() AT TIME ZONE 'America/Sao_Paulo')
+		  AND (a.date::date + a.time::time) <= (NOW() AT TIME ZONE 'America/Sao_Paulo') + ($1::text || ' hours')::interval
 		ORDER BY a.date ASC, a.time ASC
 	`, hoursBefore)
 
