@@ -7,6 +7,7 @@ import (
 	"flitta/internal/model"
 	"flitta/internal/repository"
 	"flitta/internal/service"
+	"flitta/internal/usecase"
 	"flitta/internal/utils"
 	"fmt"
 	"net/http"
@@ -25,6 +26,10 @@ type WorkingHoursRequest struct {
 	Start    string `json:"start"`
 	End      string `json:"end"`
 	Interval int    `json:"interval"`
+}
+
+type AppointmentOutcomeRequest struct {
+	ID int `json:"id"`
 }
 
 func CreateServiceHandler(w http.ResponseWriter, r *http.Request) {
@@ -434,5 +439,79 @@ func SendReminderHandler(w http.ResponseWriter, r *http.Request) {
 		"to":         result.To,
 		"message_id": result.MessageID,
 		"simulated":  result.Simulated,
+	})
+}
+
+func CompleteAppointmentHandler(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodPost {
+		http.Error(w, "método não permitido", http.StatusMethodNotAllowed)
+		return
+	}
+
+	clientID, ok := r.Context().Value(middleware.ClientIDKey).(int)
+	if !ok {
+		http.Error(w, "cliente não identificado", http.StatusUnauthorized)
+		return
+	}
+
+	var req AppointmentOutcomeRequest
+
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		http.Error(w, "dados inválidos", http.StatusBadRequest)
+		return
+	}
+
+	if req.ID <= 0 {
+		http.Error(w, "id do agendamento é obrigatório", http.StatusBadRequest)
+		return
+	}
+
+	appointmentUsecase := usecase.NewAppointmentUsecase()
+
+	if err := appointmentUsecase.CompleteAppointment(req.ID, clientID); err != nil {
+		http.Error(w, err.Error(), http.StatusBadRequest)
+		return
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	json.NewEncoder(w).Encode(map[string]string{
+		"message": "agendamento concluído com sucesso",
+	})
+}
+
+func MarkAppointmentNoShowHandler(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodPost {
+		http.Error(w, "método não permitido", http.StatusMethodNotAllowed)
+		return
+	}
+
+	clientID, ok := r.Context().Value(middleware.ClientIDKey).(int)
+	if !ok {
+		http.Error(w, "cliente não identificado", http.StatusUnauthorized)
+		return
+	}
+
+	var req AppointmentOutcomeRequest
+
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		http.Error(w, "dados inválidos", http.StatusBadRequest)
+		return
+	}
+
+	if req.ID <= 0 {
+		http.Error(w, "id do agendamento é obrigatório", http.StatusBadRequest)
+		return
+	}
+
+	appointmentUsecase := usecase.NewAppointmentUsecase()
+
+	if err := appointmentUsecase.MarkAppointmentNoShow(req.ID, clientID); err != nil {
+		http.Error(w, err.Error(), http.StatusBadRequest)
+		return
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	json.NewEncoder(w).Encode(map[string]string{
+		"message": "ausência registrada com sucesso",
 	})
 }

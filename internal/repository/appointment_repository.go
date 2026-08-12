@@ -235,6 +235,32 @@ func CancelCustomerAppointment(
 	return result.RowsAffected()
 }
 
+func UpdateAppointmentOutcome(
+	id int,
+	clientID int,
+	status string,
+) (rowsAffected int64, err error) {
+	if status != "completed" && status != "no_show" {
+		return 0, fmt.Errorf("status de atendimento inválido")
+	}
+
+	result, err := database.DB.Exec(`
+		UPDATE appointments
+		SET status = $1,
+			updated_at = CURRENT_TIMESTAMP
+		WHERE id = $2
+			AND client_id = $3
+			AND status IN ('scheduled', 'confirmed')
+			AND (date::date + time::time) <= (NOW() AT TIME ZONE 'America/Sao_Paulo')
+	`, status, id, clientID)
+
+	if err != nil {
+		return 0, err
+	}
+
+	return result.RowsAffected()
+}
+
 func GetWorkingHours(clientID int) (start, end string, interval int, err error) {
 	err = database.DB.QueryRow(`
 		SELECT start_time, end_time, interval_minutes
@@ -246,7 +272,7 @@ func GetWorkingHours(clientID int) (start, end string, interval int, err error) 
 
 func GetAppointmentsByClient(clientID int) ([]model.Appointment, error) {
 	rows, err := database.DB.Query(`
-		SELECT id, client_id, name, service, date, time, customer_phone
+		SELECT id, client_id, name, service, date, time, customer_phone, status
 		FROM appointments
 		WHERE client_id = $1
 		  AND date::date >= CURRENT_DATE
@@ -272,6 +298,7 @@ func GetAppointmentsByClient(clientID int) ([]model.Appointment, error) {
 			&a.Date,
 			&a.Time,
 			&a.CustomerPhone,
+			&a.Status,
 		)
 		if err != nil {
 			return nil, err

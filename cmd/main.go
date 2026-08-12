@@ -42,6 +42,9 @@ func main() {
 	http.HandleFunc("/admin/reminders/mark-sent", middleware.AuthMiddleware(handler.MarkReminderSentHandler))
 	http.HandleFunc("/admin/reminders/send", middleware.AuthMiddleware(handler.SendReminderHandler))
 
+	http.HandleFunc("/admin/appointments/complete", middleware.AuthMiddleware(handler.CompleteAppointmentHandler))
+	http.HandleFunc("/admin/appointments/no-show", middleware.AuthMiddleware(handler.MarkAppointmentNoShowHandler))
+
 	http.HandleFunc("/auth/register", handler.RegisterHandler)
 	http.HandleFunc("/auth/login", handler.LoginHandler)
 

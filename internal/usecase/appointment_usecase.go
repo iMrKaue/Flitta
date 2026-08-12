@@ -259,6 +259,46 @@ func (u *AppointmentUsecase) CancelAppointment(
 	return nil
 }
 
+func (u *AppointmentUsecase) CompleteAppointment(
+	id int,
+	clientID int,
+) error {
+	rowsAffected, err := repository.UpdateAppointmentOutcome(
+		id,
+		clientID,
+		"completed",
+	)
+	if err != nil {
+		return err
+	}
+
+	if rowsAffected == 0 {
+		return fmt.Errorf("agendamento não encontrado ou indisponível")
+	}
+
+	return nil
+}
+
+func (u *AppointmentUsecase) MarkAppointmentNoShow(
+	id int,
+	clientID int,
+) error {
+	rowsAffected, err := repository.UpdateAppointmentOutcome(
+		id,
+		clientID,
+		"no_show",
+	)
+	if err != nil {
+		return err
+	}
+
+	if rowsAffected == 0 {
+		return fmt.Errorf("agendamento não encontrado ou indisponível")
+	}
+
+	return nil
+}
+
 func (u *AppointmentUsecase) GetAvailableSlots(clientID int, date string) ([]string, error) {
 	return u.GetAvailableSlotsForService(clientID, date, "")
 }
