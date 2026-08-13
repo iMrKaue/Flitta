@@ -6,3 +6,7 @@ vendor/
 
 # Synthetic data generated files
 scripts/synthetic_data/output/
+
+#Python generate files
+__pycache__/
+*.pyc
