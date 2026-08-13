@@ -98,6 +98,28 @@ CUSTOMER_PROFILES = {
     },
 }
 
+WEEKDAY_DEMAND = {
+    0: (3, 4), # Segunda
+    1: (3, 5), # Terça
+    2: (4, 5), # Quarta
+    3: (4, 6), # Quinta
+    4: (5, 7), # Sexta
+    5: (5, 7), # Sábado
+    6: (0, 0), # Domingo fechado
+}
+
+HOUR_WEIGHTS = {
+    9: 0.70,
+    10: 1.00,
+    11: 1.10,
+    12: 0.65,
+    13: 0.75,
+    14: 0.90,
+    15: 1.10,
+    16: 1.25,
+    17: 1.20,
+}
+
 
 def weighted_choice(options):
     names = list(options.keys())
@@ -136,12 +158,42 @@ def generate_customers():
 
     return customers
 
+
+def generate_business_days():
+    business_days = []
+
+    current_date = START_DATE
+
+    while current_date <= END_DATE:
+        min_demand, max_demand = WEEKDAY_DEMAND[current_date.weekday()]
+
+        if max_demand > 0:
+            target_appointments = random.randint(
+                min_demand,
+                max_demand,
+            )
+
+            business_days.append(
+                {
+                    "date": current_date,
+                    "weekday": current_date.weekday(),
+                    "target_appointments": target_appointments,
+                }
+            )
+
+        current_date += timedelta(days=1)
+
+    return business_days
+
+
 def main():
     random.seed(SEED)
 
     OUTPUT_DIR.mkdir(parents=True, exist_ok=True)
 
     customers = generate_customers()
+
+    business_days = generate_business_days()
 
     print("Flitta synthetic data generator")
     print(f"Seed: {SEED}")
@@ -179,6 +231,55 @@ def main():
             f"{customer['name']} | "
             f"{customer['profile']} | "
             f"preferência: {customer['preferred_service']}"
+        )
+
+    print()
+    print(f"Dias úteis simulados: {len(business_days)}")
+
+    planned_appointments = sum(
+        day["target_appointments"]
+        for day in business_days
+    )
+
+    print(
+        "Agendamentos planejados antes de considerar duração: "
+        f"{planned_appointments}"
+    )
+
+    weekday_counts = {}
+
+    for day in business_days:
+        weekday = day["weekday"]
+
+        if weekday not in weekday_counts:
+            weekday_counts[weekday] = {
+                "days": 0,
+                "appointments": 0,
+        }
+
+        weekday_counts[weekday]["days"] += 1
+        weekday_counts[weekday]["appointments"] += day["target_appointments"]
+
+    print()
+    print("Demanda planejada por dia da semana:")
+
+    weekday_names = {
+        0: "Segunda",
+        1: "Terça",
+        2: "Quarta",
+        3: "Quinta",
+        4: "Sexta",
+        5: "Sábado",
+    }
+
+    for weekday, values in sorted(weekday_counts.items()):
+        average = values["appointments"] / values["days"]
+
+        print(
+            f"{weekday_names[weekday]}: "
+            f"{values['days']} dias | "
+            f"{values['appointments']} atendimentos | "
+            f"média {average:.2f}/dia"
         )
 
 
