@@ -197,6 +197,29 @@ def choose_service(customer):
     return weighted_choice(SERVICES)
 
 
+def choose_status(customer):
+    weights = {
+        "completed": STATUS_WEIGHTS["completed"],
+        "cancelled": (
+            STATUS_WEIGHTS["cancelled"]
+            * customer["cancel_multiplier"]
+        ),
+        "no_show": (
+            STATUS_WEIGHTS["no_show"]
+            * customer["no_show_multiplier"]
+        ),
+    }
+
+    statuses = list(weights.keys())
+    status_weights = list(weights.values())
+
+    return random.choices(
+        statuses,
+        weights=status_weights,
+        k=1,
+    )[0]
+
+
 def service_slots(service_name):
     duration = SERVICES[service_name]["duration"]
 
@@ -290,6 +313,40 @@ def generate_appointments(customers, business_days):
 
             service = SERVICES[service_name]
 
+            status = choose_status(customer)
+
+            created_at = generate_created_at(
+                business_day["date"],
+                start_hour,
+            )
+
+            appointment_datetime = datetime.combine(
+                business_day["date"],
+                time(start_hour, 0),
+            )
+
+            cancelled_at = generate_cancelled_at(
+                created_at,
+                appointment_datetime,
+                status,
+            )
+
+            reminder_sent, reminder_sent_at = generate_reminder(
+                business_day["date"],
+                start_hour,
+                created_at,
+                cancelled_at,
+            )
+
+            if status == "completed":
+                updated_at = appointment_datetime + timedelta(
+                    minutes=service["duration"]
+                )
+            elif status == "no_show":
+                updated_at = appointment_datetime + timedelta(minutes=15)
+            else:
+                updated_at = cancelled_at
+
             appointments.append(
                 {
                     "synthetic_id": appointment_number,
@@ -302,6 +359,12 @@ def generate_appointments(customers, business_days):
                     "time": f"{start_hour:02d}:00",
                     "price_snapshot": service["price"],
                     "duration_snapshot": service["duration"],
+                    "status": status,
+                    "reminder_sent": reminder_sent,
+                    "reminder_sent_at": reminder_sent_at,
+                    "created_at": created_at,
+                    "updated_at": updated_at,
+                    "cancelled_at": cancelled_at,
                 }
             )
 
@@ -317,6 +380,91 @@ def generate_appointments(customers, business_days):
 
     return appointments
 
+
+def generate_created_at(appointment_date, start_hour):
+    appointment_datetime = datetime.combine(
+        appointment_date,
+        time(start_hour, 0),
+    )
+
+    lead_days = random.choices(
+        [0, 1, 2, 3, 5, 7, 10, 14, 21, 30],
+        weights=[4, 8, 10, 12, 14, 14, 12, 10, 8, 4],
+        k=1,
+    )[0]
+
+    lead_hours = random.randint(1, 8)
+
+    created_at = (
+        appointment_datetime
+        - timedelta(days=lead_days)
+        - timedelta(hours=lead_hours)
+    )
+
+    return created_at
+
+
+def generate_cancelled_at(created_at, appointment_datetime, status):
+    if status != "cancelled":
+        return None
+
+    available_seconds = int(
+        (appointment_datetime - created_at).total_seconds()
+    )
+
+    if available_seconds <= 3600:
+        return created_at + (
+            appointment_datetime - created_at
+        ) / 2
+
+    minimum_offset = 30 * 60
+    maximum_offset = available_seconds - (60 * 60)
+
+    cancel_offset = random.randint(
+        maximum_offset,
+        maximum_offset,
+    )
+
+    return created_at + timedelta(seconds=cancel_offset)
+
+
+def generate_reminder(
+    appointment_date,
+    start_hour,
+    created_at,
+    cancelled_at,
+):
+    appointment_datetime = datetime.combine(
+        appointment_date,
+        time(start_hour, 0),
+    )
+
+    hours_between = (
+        appointment_datetime - created_at
+    ).total_seconds() / 3600
+
+    if hours_between < 24:
+        reminder_probability = 0.55
+    else:
+        reminder_probability = 0.88
+
+    reminder_sent = random.random() < reminder_probability
+
+    if not reminder_sent:
+        return False, None
+
+    reminder_sent_at = appointment_datetime - timedelta(hours=24)
+
+    if reminder_sent_at < created_at:
+        reminder_sent_at = created_at + timedelta(minutes=30)
+
+    if (
+        cancelled_at is not None
+        and reminder_sent_at >= cancelled_at
+    ):
+        return False, None
+
+    return True, reminder_sent_at
 
 
 def main():
@@ -343,6 +491,59 @@ def main():
             f"{config['duration']} min | "
             f"R$ {config['price']:.2f} | "
             f"peso {config['weight']:.0%}"
+        )
+
+    status_counts = {}
+
+    for appointment in appointments:
+        status = appointment["status"]
+        status_counts[status] = status_counts.get(status, 0) + 1
+
+    print()
+    print("Distribuição de status:")
+
+    for status, count in sorted(status_counts.items()):
+        percentage = count / len(appointments)
+
+        print(
+            f"{status}: "
+            f"{count} |"
+            f"{percentage:.1%}"
+        )
+
+    profile_outcomes = {}
+
+    for appointment in appointments:
+        profile = appointment["customer_profile"]
+        status = appointment["status"]
+
+        if profile not in profile_outcomes:
+            profile_outcomes[profile] = {
+                "total": 0,
+                "no_show": 0,
+                "cancelled": 0,
+            }
+
+        profile_outcomes[profile]["total"] += 1
+
+        if status == "no_show":
+            profile_outcomes[profile]["no_show"] += 1
+
+        if status == "cancelled":
+            profile_outcomes[profile]["cancelled"] += 1
+
+    print()
+    print("Comportamento por perfil:")
+
+    for profile, values in sorted(profile_outcomes.items()):
+        no_show_rate = values["no_show"] / values["total"]
+        cancel_rate = values["cancelled"] / values["total"]
+
+        print(
+            f"{profile}: "
+            f"{values['total']} agendamentos | "
+            f"no_show {no_show_rate:.1%} | "
+            f"cancelamento {cancel_rate:.1%}"
         )
 
     print()
@@ -449,9 +650,10 @@ def main():
         print(
             f"{appointment['date']} "
             f"{appointment['time']} | "
+            f"{appointment['customer_phone']} | "
             f"{appointment['customer_name']} | "
             f"{appointment['service']} | "
-            f"{appointment['duration_snapshot']} min"
+            f"{appointment['status']}"
         )
 
 
