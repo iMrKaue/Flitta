@@ -186,6 +186,139 @@ def generate_business_days():
     return business_days
 
 
+def choose_customer(customers):
+    return random.choice(customers)
+
+
+def choose_service(customer):
+    if random.random() < 0.70:
+        return customer["preferred_service"]
+
+    return weighted_choice(SERVICES)
+
+
+def service_slots(service_name):
+    duration = SERVICES[service_name]["duration"]
+
+    return duration // 60
+
+
+def available_start_hours(occupied_hours, service_name):
+    required_slots = service_slots(service_name)
+
+    available = []
+
+    for hour in range(OPENING_TIME.hour, CLOSING_TIME.hour):
+        service_hours = [
+            hour + offset
+            for offset in range(required_slots)
+        ]
+
+        if service_hours[-1] >= CLOSING_TIME.hour:
+            continue
+
+        if any(service_hour in occupied_hours for service_hour in service_hours):
+            continue
+
+        available.append(hour)
+
+    return available
+
+
+def choose_start_hour(available_hours):
+    if not available_hours:
+        return None
+
+    weights = [
+        HOUR_WEIGHTS[hour]
+        for hour in available_hours
+    ]
+
+    return random.choices(
+        available_hours,
+        weights=weights,
+        k=1,
+    )[0]
+
+
+def generate_appointments(customers, business_days):
+    appointments = []
+
+    appointment_number = 1
+
+    for business_day in business_days:
+        occupied_hours = set()
+
+        booked_customers = set()
+
+        target = business_day["target_appointments"]
+
+        attempts = 0
+        max_attempts = target * 20
+
+        while (
+            len([
+                appointment
+                for appointment in appointments
+                if appointment["date"] == business_day["date"]
+            ]) < target
+            and attempts < max_attempts
+        ):
+            attempts += 1
+
+            customer = choose_customer(customers)
+
+            if customer["phone"] in booked_customers:
+                continue
+
+            service_name = choose_service(customer)
+
+            available_hours = available_start_hours(
+                occupied_hours,
+                service_name,
+            )
+
+            start_hour = choose_start_hour(available_hours)
+
+            if start_hour is None:
+                continue
+
+            required_slots = service_slots(service_name)
+
+            for offset in range(required_slots):
+                occupied_hours.add(start_hour + offset)
+
+            service = SERVICES[service_name]
+
+            appointments.append(
+                {
+                    "synthetic_id": appointment_number,
+                    "client_id": CLIENT_ID,
+                    "customer_name": customer["name"],
+                    "customer_phone": customer["phone"],
+                    "customer_profile": customer["profile"],
+                    "service": service_name,
+                    "date": business_day["date"],
+                    "time": f"{start_hour:02d}:00",
+                    "price_snapshot": service["price"],
+                    "duration_snapshot": service["duration"],
+                }
+            )
+
+            appointment_number += 1
+            booked_customers.add(customer["phone"])
+
+    appointments.sort(
+        key=lambda appointment: (
+            appointment["date"],
+            appointment["time"],
+        )
+    )
+
+    return appointments
+
+
+
 def main():
     random.seed(SEED)
 
@@ -194,6 +327,8 @@ def main():
     customers = generate_customers()
 
     business_days = generate_business_days()
+
+    appointments = generate_appointments(customers, business_days)
 
     print("Flitta synthetic data generator")
     print(f"Seed: {SEED}")
@@ -280,6 +415,43 @@ def main():
             f"{values['days']} dias | "
             f"{values['appointments']} atendimentos | "
             f"média {average:.2f}/dia"
+        )
+
+    print()
+    print(f"Agendamentos efetivamente encaixados: {len(appointments)}")
+    print(
+        "Agendamentos não encaixados por falta de espaço: "
+        f"{planned_appointments - len(appointments)}"
+    )
+
+    service_counts = {}
+
+    for appointment in appointments:
+        service = appointment["service"]
+        service_counts[service] = service_counts.get(service, 0) + 1
+
+    print()
+    print("Serviços efetivamente agendados:")
+
+    for service, count in sorted(service_counts.items()):
+        percentage = count / len(appointments)
+
+        print(
+            f"{service}: "
+            f"{count} | "
+            f"{percentage:.1%}"
+        )
+
+    print()
+    print("Primeiros 10 agendamentos:")
+
+    for appointment in appointments[:10]:
+        print(
+            f"{appointment['date']} "
+            f"{appointment['time']} | "
+            f"{appointment['customer_name']} | "
+            f"{appointment['service']} | "
+            f"{appointment['duration_snapshot']} min"
         )
 
 
