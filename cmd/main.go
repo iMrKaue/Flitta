@@ -46,6 +46,7 @@ func main() {
 	http.HandleFunc("/admin/appointments/no-show", middleware.AuthMiddleware(handler.MarkAppointmentNoShowHandler))
 
 	http.HandleFunc("/admin/intelligence/summary", middleware.AuthMiddleware(handler.GetIntelligenceSummaryHandler))
+	http.HandleFunc("/admin/intelligence/services", middleware.AuthMiddleware(handler.GetServicePerformanceHandler))
 
 	http.HandleFunc("/auth/register", handler.RegisterHandler)
 	http.HandleFunc("/auth/login", handler.LoginHandler)
