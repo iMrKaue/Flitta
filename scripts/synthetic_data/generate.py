@@ -467,6 +467,80 @@ def generate_reminder(
     return True, reminder_sent_at
 
 
+def format_datetime(value):
+    if value is None:
+        return ""
+
+    return value.strftime("%Y-%m-%d %H:%M:%S")
+
+
+def write_appointments_csv(appointments):
+    fieldnames = [
+        "client_id",
+        "name",
+        "service",
+        "date",
+        "time",
+        "customer_phone",
+        "reminder_sent",
+        "reminder_sent_at",
+        "status",
+        "created_at",
+        "updated_at",
+        "cancelled_at",
+        "price_snapshot",
+        "duration_snapshot",
+    ]
+
+    OUTPUT_DIR.mkdir(parents=True, exist_ok=True)
+
+    with OUTPUT_FILE.open(
+        "w",
+        newline="",
+        encoding="utf-8",
+    ) as csv_file:
+        writer = csv.DictWriter(
+            csv_file,
+            fieldnames=fieldnames,
+        )
+
+        writer.writeheader()
+
+        for appointment in appointments:
+            writer.writerow(
+                {
+                    "client_id": appointment["client_id"],
+                    "name": appointment["customer_name"],
+                    "service": appointment["service"],
+                    "date": appointment["date"].isoformat(),
+                    "time": appointment["time"],
+                    "customer_phone": appointment["customer_phone"],
+                    "reminder_sent": str(
+                        appointment["reminder_sent"]
+                    ).lower(),
+                    "reminder_sent_at": format_datetime(
+                        appointment["reminder_sent_at"]
+                    ),
+                    "status": appointment["status"],
+                    "created_at": format_datetime(
+                        appointment["created_at"]
+                    ),
+                    "updated_at": format_datetime(
+                        appointment["updated_at"]
+                    ),
+                    "cancelled_at": format_datetime(
+                        appointment["cancelled_at"]
+                    ),
+                    "price_snapshot": (
+                        f"{appointment['price_snapshot']:.2f}"
+                    ),
+                    "duration_snapshot": (
+                        appointment["duration_snapshot"]
+                    ),
+                }
+            )
+
+
 def main():
     random.seed(SEED)
 
@@ -477,6 +551,8 @@ def main():
     business_days = generate_business_days()
 
     appointments = generate_appointments(customers, business_days)
+
+    write_appointments_csv(appointments)
 
     print("Flitta synthetic data generator")
     print(f"Seed: {SEED}")
@@ -655,6 +731,10 @@ def main():
             f"{appointment['service']} | "
             f"{appointment['status']}"
         )
+
+    print()
+    print(f"CSV gerado: {OUTPUT_FILE}")
+    print(f"Linhas de dados: {len(appointments)}")
 
 
 if __name__ == "__main__":
