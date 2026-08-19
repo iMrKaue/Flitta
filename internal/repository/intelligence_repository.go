@@ -1,0 +1,455 @@
+package repository
+
+import (
+	"flitta/internal/database"
+	"flitta/internal/model"
+)
+
+func GetIntelligenceSummary(clientID int) (model.IntelligenceSummary, error) {
+	var summary model.IntelligenceSummary
+
+	err := database.DB.QueryRow(`
+		SELECT
+			COUNT(*) AS total_appointments,
+
+			COUNT(*) FILTER (
+				WHERE status = 'completed'
+			) AS completed,
+
+			COUNT(*) FILTER (
+				WHERE status = 'cancelled'
+			) AS cancelled,
+
+			COUNT(*) FILTER (
+				WHERE status = 'no_show'
+			) AS no_show,
+
+			COALESCE(
+				ROUND(
+					100.0 * COUNT(*) FILTER (
+						WHERE status = 'completed'
+					) / NULLIF(
+                                                COUNT(*) FILTER (
+                                                        WHERE status IN ('completed', 'cancelled', 'no_show')
+                                                        ),
+                                                0
+						),
+					2
+				),
+				0
+			) AS completion_rate,
+
+			COALESCE(
+				ROUND(
+					100.0 * COUNT(*) FILTER (
+						WHERE status = 'cancelled'
+					) / NULLIF(
+                                                COUNT(*) FILTER (
+                                                        WHERE status IN ('completed', 'cancelled', 'no_show')
+                                                ),
+                                                0
+						),
+					2
+				),
+				0
+			) AS cancellation_rate,
+
+			COALESCE(
+				ROUND(
+					100.0 * COUNT(*) FILTER (
+						WHERE status = 'no_show'
+					) / NULLIF(
+                                                COUNT(*) FILTER (
+                                                        WHERE status IN ('completed', 'cancelled', 'no_show')
+                                                ),
+                                                0
+						),
+					2
+				),
+				0
+			) AS no_show_rate,
+
+			COALESCE(
+				ROUND(
+					SUM(price_snapshot) FILTER (
+						WHERE status = 'completed'
+					),
+					2
+				),
+				0
+			) AS completed_revenue
+
+		FROM appointments
+		WHERE client_id = $1
+	`, clientID).Scan(
+		&summary.TotalAppointments,
+		&summary.Completed,
+		&summary.Cancelled,
+		&summary.NoShow,
+		&summary.CompletionRate,
+		&summary.CancellationRate,
+		&summary.NoShowRate,
+		&summary.CompletedRevenue,
+	)
+
+	if err != nil {
+		return model.IntelligenceSummary{}, err
+	}
+
+	return summary, nil
+}
+
+func GetServicePerformance(clientID int) ([]model.ServicePerformance, error) {
+	rows, err := database.DB.Query(`
+		SELECT
+			service,
+
+			COUNT(*) AS total_appointments,
+
+			COUNT(*) FILTER (
+				WHERE status = 'completed'
+			) AS completed,
+
+			COUNT(*) FILTER (
+				WHERE status = 'cancelled'
+			) AS cancelled,
+
+			COUNT(*) FILTER (
+				WHERE status = 'no_show'
+			) AS no_show,
+
+			COALESCE(
+				ROUND(
+					100.0 * COUNT(*) FILTER (
+						WHERE status = 'completed'
+					) / NULLIF(
+                                                COUNT(*) FILTER (
+                                                        WHERE status IN ('completed', 'cancelled', 'no_show')
+                                                ),
+                                                0
+						),
+					2
+				),
+				0
+			) AS completion_rate,
+
+			COALESCE(
+				ROUND(
+					100.0 * COUNT(*) FILTER (
+						WHERE status = 'cancelled'
+					) / NULLIF(
+                                                COUNT(*) FILTER (
+                                                        WHERE status IN ('completed', 'cancelled', 'no_show')
+                                                ),
+                                                0
+						),
+					2
+				),
+				0
+			) AS cancellation_rate,
+
+			COALESCE(
+				ROUND(
+					100.0 * COUNT(*) FILTER (
+						WHERE status = 'no_show'
+					) / NULLIF(
+                                                COUNT(*) FILTER (
+                                                        WHERE status IN ('completed', 'cancelled', 'no_show')
+                                                ),
+                                                0
+						),
+					2
+				),
+				0
+			) AS no_show_rate,
+
+			COALESCE(
+				ROUND(
+					SUM(price_snapshot) FILTER (
+						WHERE status = 'completed'
+					),
+					2
+				),
+				0
+			) AS completed_revenue
+
+		FROM appointments
+		WHERE client_id = $1
+		GROUP BY service
+		ORDER BY total_appointments DESC, service ASC
+	`, clientID)
+
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	services := []model.ServicePerformance{}
+
+	for rows.Next() {
+		var service model.ServicePerformance
+
+		if err := rows.Scan(
+			&service.Service,
+			&service.TotalAppointments,
+			&service.Completed,
+			&service.Cancelled,
+			&service.NoShow,
+			&service.CompletionRate,
+			&service.CancellationRate,
+			&service.NoShowRate,
+			&service.CompletedRevenue,
+		); err != nil {
+			return nil, err
+		}
+
+		services = append(services, service)
+	}
+
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+
+	return services, nil
+}
+
+func GetWeekdayPerformance(clientID int) ([]model.WeekdayPerformance, error) {
+	rows, err := database.DB.Query(`
+		SELECT
+			EXTRACT(ISODOW FROM date::date)::int AS weekday_number,
+
+			COUNT(*) AS total_appointments,
+
+			COUNT(*) FILTER (
+				WHERE status = 'completed'
+			) AS completed,
+
+			COUNT(*) FILTER (
+				WHERE status = 'cancelled'
+			) AS cancelled,
+
+			COUNT(*) FILTER (
+				WHERE status = 'no_show'
+			) AS no_show,
+
+			COALESCE(
+				ROUND(
+					100.0 * COUNT(*) FILTER (
+						WHERE status = 'completed'
+					) / NULLIF(
+						COUNT(*) FILTER (
+							WHERE status IN ('completed', 'cancelled', 'no_show')
+						),
+						0
+					),
+					2
+				),
+				0
+			) AS completion_rate,
+
+			COALESCE(
+				ROUND(
+					100.0 * COUNT(*) FILTER (
+						WHERE status = 'cancelled'
+					) / NULLIF(
+						COUNT(*) FILTER (
+							WHERE status IN ('completed', 'cancelled', 'no_show')
+						),
+						0
+					),
+					2
+				),
+				0
+			) AS cancellation_rate,
+
+			COALESCE(
+				ROUND(
+					100.0 * COUNT(*) FILTER (
+						WHERE status = 'no_show'
+					) / NULLIF(
+						COUNT(*) FILTER (
+							WHERE status IN ('completed', 'cancelled', 'no_show')
+						),
+						0
+					),
+					2
+				),
+				0
+			) AS no_show_rate,
+
+			COALESCE(
+				ROUND(
+					SUM(price_snapshot) FILTER (
+						WHERE status = 'completed'
+					),
+					2
+				),
+				0
+			) AS completed_revenue
+
+		FROM appointments
+		WHERE client_id = $1
+		GROUP BY EXTRACT(ISODOW FROM date::date)
+		ORDER BY weekday_number ASC
+	`, clientID)
+
+	if err != nil {
+		return nil, err
+	}
+
+	defer rows.Close()
+
+	weekdays := []model.WeekdayPerformance{}
+
+	weekdayNames := map[int]string{
+		1: "Segunda",
+		2: "Terça",
+		3: "Quarta",
+		4: "Quinta",
+		5: "Sexta",
+		6: "Sábado",
+		7: "Domingo",
+	}
+
+	for rows.Next() {
+		var weekday model.WeekdayPerformance
+
+		if err := rows.Scan(
+			&weekday.WeekdayNumber,
+			&weekday.TotalAppointments,
+			&weekday.Completed,
+			&weekday.Cancelled,
+			&weekday.NoShow,
+			&weekday.CompletionRate,
+			&weekday.CancellationRate,
+			&weekday.NoShowRate,
+			&weekday.CompletedRevenue,
+		); err != nil {
+			return nil, err
+		}
+
+		weekday.Weekday = weekdayNames[weekday.WeekdayNumber]
+
+		weekdays = append(weekdays, weekday)
+	}
+
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+
+	return weekdays, nil
+}
+
+func GetHourPerformance(clientID int) ([]model.HourPerformance, error) {
+	rows, err := database.DB.Query(`
+		SELECT
+			TO_CHAR(time::time, 'HH24:MI') AS hour,
+
+			COUNT(*) AS total_appointments,
+
+			COUNT(*) FILTER (
+				WHERE status = 'completed'
+			) AS completed,
+
+			COUNT(*) FILTER (
+				WHERE status = 'cancelled'
+			) AS cancelled,
+
+			COUNT(*) FILTER (
+				WHERE status = 'no_show'
+			) AS no_show,
+
+			COALESCE(
+				ROUND(
+					100.0 * COUNT(*) FILTER (
+						WHERE status = 'completed'
+					) / NULLIF(
+						COUNT(*) FILTER (
+							WHERE status IN ('completed', 'cancelled', 'no_show')
+						),
+						0
+					),
+					2
+				),
+				0
+			) AS completion_rate,
+
+			COALESCE(
+				ROUND(
+					100.0 * COUNT(*) FILTER (
+						WHERE status = 'cancelled'
+					) / NULLIF(
+						COUNT(*) FILTER (
+							WHERE status IN ('completed', 'cancelled', 'no_show')
+						),
+						0
+					),
+					2
+				),
+				0
+			) AS cancellation_rate,
+
+			COALESCE(
+				ROUND(
+					100.0 * COUNT(*) FILTER (
+						WHERE status = 'no_show'
+					) / NULLIF(
+						COUNT(*) FILTER (
+							WHERE status IN ('completed', 'cancelled', 'no_show')
+						),
+						0
+					),
+					2
+				),
+				0
+			) AS no_show_rate,
+
+			COALESCE(
+				ROUND(
+					SUM(price_snapshot) FILTER (
+						WHERE status = 'completed'
+					),
+					2
+				),
+				0
+			) AS completed_revenue
+
+		FROM appointments
+		WHERE client_id = $1
+		GROUP BY time::time
+		ORDER BY time::time ASC
+	`, clientID)
+
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	hours := []model.HourPerformance{}
+
+	for rows.Next() {
+		var hour model.HourPerformance
+
+		if err := rows.Scan(
+			&hour.Hour,
+			&hour.TotalAppointments,
+			&hour.Completed,
+			&hour.Cancelled,
+			&hour.NoShow,
+			&hour.CompletionRate,
+			&hour.CancellationRate,
+			&hour.NoShowRate,
+			&hour.CompletedRevenue,
+		); err != nil {
+			return nil, err
+		}
+
+		hours = append(hours, hour)
+	}
+
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+
+	return hours, nil
+}
