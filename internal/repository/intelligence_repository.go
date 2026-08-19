@@ -339,3 +339,117 @@ func GetWeekdayPerformance(clientID int) ([]model.WeekdayPerformance, error) {
 
 	return weekdays, nil
 }
+
+func GetHourPerformance(clientID int) ([]model.HourPerformance, error) {
+	rows, err := database.DB.Query(`
+		SELECT
+			TO_CHAR(time::time, 'HH24:MI') AS hour,
+
+			COUNT(*) AS total_appointments,
+
+			COUNT(*) FILTER (
+				WHERE status = 'completed'
+			) AS completed,
+
+			COUNT(*) FILTER (
+				WHERE status = 'cancelled'
+			) AS cancelled,
+
+			COUNT(*) FILTER (
+				WHERE status = 'no_show'
+			) AS no_show,
+
+			COALESCE(
+				ROUND(
+					100.0 * COUNT(*) FILTER (
+						WHERE status = 'completed'
+					) / NULLIF(
+						COUNT(*) FILTER (
+							WHERE status IN ('completed', 'cancelled', 'no_show')
+						),
+						0
+					),
+					2
+				),
+				0
+			) AS completion_rate,
+
+			COALESCE(
+				ROUND(
+					100.0 * COUNT(*) FILTER (
+						WHERE status = 'cancelled'
+					) / NULLIF(
+						COUNT(*) FILTER (
+							WHERE status IN ('completed', 'cancelled', 'no_show')
+						),
+						0
+					),
+					2
+				),
+				0
+			) AS cancellation_rate,
+
+			COALESCE(
+				ROUND(
+					100.0 * COUNT(*) FILTER (
+						WHERE status = 'no_show'
+					) / NULLIF(
+						COUNT(*) FILTER (
+							WHERE status IN ('completed', 'cancelled', 'no_show')
+						),
+						0
+					),
+					2
+				),
+				0
+			) AS no_show_rate,
+
+			COALESCE(
+				ROUND(
+					SUM(price_snapshot) FILTER (
+						WHERE status = 'completed'
+					),
+					2
+				),
+				0
+			) AS completed_revenue
+
+		FROM appointments
+		WHERE client_id = $1
+		GROUP BY time::time
+		ORDER BY time::time ASC
+	`, clientID)
+
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	hours := []model.HourPerformance{}
+
+	for rows.Next() {
+		var hour model.HourPerformance
+
+		if err := rows.Scan(
+			&hour.Hour,
+			&hour.TotalAppointments,
+			&hour.Completed,
+			&hour.Cancelled,
+			&hour.NoShow,
+			&hour.CompletionRate,
+			&hour.CancellationRate,
+			&hour.NoShowRate,
+			&hour.CompletedRevenue,
+		); err != nil {
+			return nil, err
+		}
+
+		hours = append(hours, hour)
+	}
+
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+
+	return hours, nil
+}
