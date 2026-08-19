@@ -212,3 +212,129 @@ func GetServicePerformance(clientID int) ([]model.ServicePerformance, error) {
 
 	return services, nil
 }
+
+func GetWeekdayPerformance(clientID int) ([]model.WeekdayPerformance, error) {
+	rows, err := database.DB.Query(`
+		SELECT
+			EXTRACT(ISODOW FROM date::date)::int AS weekday_number,
+
+			CASE EXTRACT(ISODOW FROM date::date)::int
+				WHEN 1 THEN 'Segunda'
+				WHEN 2 THEN 'Terça'
+				WHEN 3 THEN 'Quarta'
+				WHEN 4 THEN 'Quinta'
+				WHEN 5 THEN 'Sexta'
+				WHEN 6 THEN 'Sábado'
+				WHEN 7 THEN 'Domingo'
+			END AS weekday,
+
+			COUNT(*) AS total_appointments,
+
+			COUNT(*) FILTER (
+				WHERE status = 'completed'
+			) AS completed,
+
+			COUNT(*) FILTER (
+				WHERE status = 'cancelled'
+			) AS cancelled,
+
+			COUNT(*) FILTER (
+				WHERE status = 'no_show'
+			) AS no_show,
+
+			COALESCE(
+				ROUND(
+					100.0 * COUNT(*) FILTER (
+						WHERE status = 'completed'
+					) / NULLIF(
+						COUNT(*) FILTER (
+							WHERE status IN ('completed', 'cancelled', 'no_show')
+						),
+						0
+					),
+					2
+				),
+				0
+			) AS completion_rate,
+
+			COALESCE(
+				ROUND(
+					100.0 * COUNT(*) FILTER (
+						WHERE status = 'cancelled'
+					) / NULLIF(
+						COUNT(*) FILTER (
+							WHERE status IN ('completed', 'cancelled', 'no_show')
+						),
+						0
+					),
+					2
+				),
+				0
+			) AS cancellation_rate,
+
+			COALESCE(
+				ROUND(
+					100.0 * COUNT(*) FILTER (
+						WHERE status = 'no_show'
+					) / NULLIF(
+						COUNT(*) FILTER (
+							WHERE status IN ('completed', 'cancelled', 'no_show')
+						),
+						0
+					),
+					2
+				),
+				0
+			) AS no_show_rate,
+
+			COALESCE(
+				ROUND(
+					SUM(price_snapshot) FILTER (
+						WHERE status = 'completed'
+					),
+					2
+				),
+				0
+			) AS completed_revenue
+
+		FROM appointments
+		WHERE client_id = $1
+		GROUP BY EXTRACT(ISODOW FROM date::date)
+		ORDER BY weekday_number ASC
+	`, clientID)
+
+	if err != nil {
+		return nil, err
+	}
+
+	defer rows.Close()
+
+	weekdays := []model.WeekdayPerformance{}
+
+	for rows.Next() {
+		var weekday model.WeekdayPerformance
+
+		if err := rows.Scan(
+			&weekday.WeekdayNumber,
+			&weekday.Weekday,
+			&weekday.TotalAppointments,
+			&weekday.Completed,
+			&weekday.Cancelled,
+			&weekday.NoShow,
+			&weekday.CompletionRate,
+			&weekday.CancellationRate,
+			&weekday.NoShowRate,
+			&weekday.CompletedRevenue,
+		); err != nil {
+			return nil, err
+		}
+
+		weekdays = append(weekdays, weekday)
+	}
+
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+
+	return weekdays, nil
+}
