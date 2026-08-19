@@ -47,6 +47,7 @@ func main() {
 
 	http.HandleFunc("/admin/intelligence/summary", middleware.AuthMiddleware(handler.GetIntelligenceSummaryHandler))
 	http.HandleFunc("/admin/intelligence/services", middleware.AuthMiddleware(handler.GetServicePerformanceHandler))
+	http.HandleFunc("/admin/intelligence/weekdays", middleware.AuthMiddleware(handler.GetWeekdayPerformanceHandler))
 
 	http.HandleFunc("/auth/register", handler.RegisterHandler)
 	http.HandleFunc("/auth/login", handler.LoginHandler)

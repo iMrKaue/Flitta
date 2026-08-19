@@ -218,16 +218,6 @@ func GetWeekdayPerformance(clientID int) ([]model.WeekdayPerformance, error) {
 		SELECT
 			EXTRACT(ISODOW FROM date::date)::int AS weekday_number,
 
-			CASE EXTRACT(ISODOW FROM date::date)::int
-				WHEN 1 THEN 'Segunda'
-				WHEN 2 THEN 'Terça'
-				WHEN 3 THEN 'Quarta'
-				WHEN 4 THEN 'Quinta'
-				WHEN 5 THEN 'Sexta'
-				WHEN 6 THEN 'Sábado'
-				WHEN 7 THEN 'Domingo'
-			END AS weekday,
-
 			COUNT(*) AS total_appointments,
 
 			COUNT(*) FILTER (
@@ -311,12 +301,21 @@ func GetWeekdayPerformance(clientID int) ([]model.WeekdayPerformance, error) {
 
 	weekdays := []model.WeekdayPerformance{}
 
+	weekdayNames := map[int]string{
+		1: "Segunda",
+		2: "Terça",
+		3: "Quarta",
+		4: "Quinta",
+		5: "Sexta",
+		6: "Sábado",
+		7: "Domingo",
+	}
+
 	for rows.Next() {
 		var weekday model.WeekdayPerformance
 
 		if err := rows.Scan(
 			&weekday.WeekdayNumber,
-			&weekday.Weekday,
 			&weekday.TotalAppointments,
 			&weekday.Completed,
 			&weekday.Cancelled,
@@ -328,6 +327,8 @@ func GetWeekdayPerformance(clientID int) ([]model.WeekdayPerformance, error) {
 		); err != nil {
 			return nil, err
 		}
+
+		weekday.Weekday = weekdayNames[weekday.WeekdayNumber]
 
 		weekdays = append(weekdays, weekday)
 	}
