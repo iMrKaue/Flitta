@@ -1,6 +1,32 @@
 let currentAppointmentFilter = "all";
 let allAppointments = [];
 
+function formatCurrency(value) {
+    const number = Number(value);
+
+    if (Number.isNaN(number)) {
+        return "R$ 0,00";
+    }
+
+    return new Intl.NumberFormat("pt-BR", {
+        style: "currency",
+        currency: "BRL"
+    }).format(number);
+}
+
+function formatPercentage(value) {
+    const number = Number(value);
+
+    if (Number.isNaN(number)) {
+        return "0%";
+    }
+
+    return `${number.toLocaleString("pt-BR", {
+        minimumFractionDigits: 2,
+        maximumFractionDigits: 2
+    })}%`;
+}
+
 function formatHour(value) {
     if (!value) {
         return "";
@@ -621,8 +647,35 @@ async function sendReminder(appointmentID) {
     }
 }
 
+async function loadIntelligenceSummary() {
+    const totalElement = document.getElementById("intelligenceTotal");
+    const revenueElement = document.getElementById("intelligenceRevenue");
+    const completionRateElement = document.getElementById("intelligenceCompletionRate");
+    const cancellationRateElement = document.getElementById("intelligenceCancellationRate");
+    const noShowRateElement = document.getElementById("intelligenceNoShowRate");
+
+    try {
+        const data = await apiFetch("/admin/intelligence/summary");
+
+        totalElement.innerText = data.total_appointments ?? 0;
+        revenueElement.innerText = formatCurrency(data.completed_revenue);
+        completionRateElement.innerText = formatPercentage(data.completion_rate);
+        cancellationRateElement.innerText = formatPercentage(data.cancellation_rate);
+        noShowRateElement.innerText = formatPercentage(data.no_show_rate);
+    } catch (err) {
+        totalElement.innerText = "--";
+        revenueElement.innerText = "--";
+        completionRateElement.innerText = "--";
+        cancellationRateElement.innerText = "--";
+        noShowRateElement.innerText = "--";
+
+        console.error("Erro ao carregar resumo do Flitta Intelligence:", err);
+    }
+}
+
 loadCompanySettings();
 loadServices();
 loadAppointments();
 loadWorkingHours();
 loadPendingReminders();
+loadIntelligenceSummary();
