@@ -10,22 +10,15 @@ import (
 	"strings"
 )
 
-func ProcessMessage(userID, text string) string {
-
-	clientID, err := GetClientByPhone(userID)
-
-	if err != nil {
-		return "Empresa não encontrada. Entre em contato com o suporte."
-	}
-
+func ProcessMessage(clientID int, customerPhone, text string) string {
 	text = strings.ToLower(strings.TrimSpace(text))
 
 	// 🔹 sessão
-	session, err := repository.GetSession(clientID, userID)
+	session, err := repository.GetSession(clientID, customerPhone)
 
 	if err != nil || session.Phone == "" {
 		session = model.Session{
-			Phone:    userID,
+			Phone:    customerPhone,
 			ClientID: clientID,
 			State:    model.StateIdle,
 		}
@@ -53,7 +46,7 @@ func ProcessMessage(userID, text string) string {
 
 	// 🔹 reset
 	if text == "sair" {
-		repository.DeleteSession(clientID, userID)
+		repository.DeleteSession(clientID, customerPhone)
 		return "Fluxo reiniciado ✅\nVocê pode agendar, listar, remarcar ou cancelar."
 	}
 
