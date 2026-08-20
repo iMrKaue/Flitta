@@ -3,6 +3,7 @@ package config
 import (
 	"log"
 	"os"
+	"strings"
 
 	"github.com/joho/godotenv"
 )
@@ -22,4 +23,20 @@ func GetJWTSecret() []byte {
 	}
 
 	return []byte(secret)
+}
+
+func GetAppEnv() string {
+	return strings.ToLower(strings.TrimSpace(os.Getenv("APP_ENV")))
+}
+
+func IsDevelopment() bool {
+	return GetAppEnv() == "development"
+}
+
+func GetTwilioAuthToken() string {
+	return strings.TrimSpace(os.Getenv("TWILIO_AUTH_TOKEN"))
+}
+
+func GetTwilioWebhookURL() string {
+	return strings.TrimSpace(os.Getenv("TWILIO_WEBHOOK_URL"))
 }
