@@ -21,7 +21,7 @@ func ProcessMessage(userID, text string) string {
 	text = strings.ToLower(strings.TrimSpace(text))
 
 	// 🔹 sessão
-	session, err := repository.GetSession(userID)
+	session, err := repository.GetSession(clientID, userID)
 
 	if err != nil || session.Phone == "" {
 		session = model.Session{
@@ -53,7 +53,7 @@ func ProcessMessage(userID, text string) string {
 
 	// 🔹 reset
 	if text == "sair" {
-		repository.DeleteSession(userID)
+		repository.DeleteSession(clientID, userID)
 		return "Fluxo reiniciado ✅\nVocê pode agendar, listar, remarcar ou cancelar."
 	}
 
