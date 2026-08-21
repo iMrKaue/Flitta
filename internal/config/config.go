@@ -40,3 +40,24 @@ func GetTwilioAuthToken() string {
 func GetTwilioWebhookURL() string {
 	return strings.TrimSpace(os.Getenv("TWILIO_WEBHOOK_URL"))
 }
+
+func GetCORSAllowedOrigins() []string {
+	raw := strings.TrimSpace(os.Getenv("CORS_ALLOWED_ORIGINS"))
+	if raw == "" {
+		return nil
+	}
+
+	parts := strings.Split(raw, ",")
+	origins := make([]string, 0, len(parts))
+
+	for _, part := range parts {
+		origin := strings.TrimSpace(part)
+		origin = strings.TrimSuffix(origin, "/")
+
+		if origin != "" {
+			origins = append(origins, origin)
+		}
+	}
+
+	return origins
+}
