@@ -125,30 +125,27 @@ func ConnectDB() {
 		log.Fatal("Erro ao preparar conexão com PostgreSQL: ", err)
 	}
 
-	ctx, cancel := context.WithTimeout(
+	pingCtx, cancelPing := context.WithTimeout(
 		context.Background(),
 		5*time.Second,
 	)
-	defer cancel()
 
-	if err := DB.PingContext(ctx); err != nil {
+	if err := DB.PingContext(pingCtx); err != nil {
+		cancelPing()
 		log.Fatal("Erro ao conectar no PostgreSQL: ", err)
 	}
 
-	runMigrations()
+	cancelPing()
+
+	migrationCtx, cancelMigrations := context.WithTimeout(
+		context.Background(),
+		2*time.Minute,
+	)
+	defer cancelMigrations()
+
+	if err := runMigrations(migrationCtx); err != nil {
+		log.Fatal("Erro ao executar migrations: ", err)
+	}
 
 	log.Println("PostgreSQL conectado ✅")
-}
-
-func runMigrations() {
-	stmts := []string{
-		`ALTER TABLE appointments ADD COLUMN IF NOT EXISTS customer_phone VARCHAR(64)`,
-		`ALTER TABLE user_sessions ADD COLUMN IF NOT EXISTS selected_appointment_id INTEGER NOT NULL DEFAULT 0`,
-	}
-
-	for _, q := range stmts {
-		if _, err := DB.Exec(q); err != nil {
-			log.Printf("migration: %v", err)
-		}
-	}
 }
