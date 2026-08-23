@@ -3,6 +3,7 @@ package handler
 import (
 	"database/sql"
 	"encoding/json"
+	"encoding/xml"
 	"errors"
 	"flitta/internal/middleware"
 	"flitta/internal/repository"
@@ -17,6 +18,31 @@ type Message struct {
 	UserID string `json:"user_id"`
 	To     string `json:"to"`
 	Text   string `json:"text"`
+}
+
+type twimlResponse struct {
+	XMLName xml.Name `xml:"Response"`
+	Message string   `xml:"Message"`
+}
+
+func writeTwiMLResponse(
+	w http.ResponseWriter,
+	message string,
+) error {
+	payload, err := xml.Marshal(twimlResponse{
+		Message: message,
+	})
+	if err != nil {
+		return err
+	}
+
+	w.Header().Set(
+		"Content-Type",
+		"application/xml; charset=utf-8",
+	)
+
+	_, err = w.Write(payload)
+	return err
 }
 
 func WebhookHandler(w http.ResponseWriter, r *http.Request) {
@@ -100,12 +126,13 @@ func WebhookHandler(w http.ResponseWriter, r *http.Request) {
 	)
 
 	if isTwilioRequest {
-		w.Header().Set("Content-Type", "application/xml; charset=utf-8")
-		w.Write([]byte(`
-<Response>
-	<Message>` + response + `</Message>
-</Response>
-`))
+		if err := writeTwiMLResponse(w, response); err != nil {
+			log.Printf(
+				"erro ao gerar resposta TwiML: %v",
+				err,
+			)
+		}
+
 		return
 	}
 
