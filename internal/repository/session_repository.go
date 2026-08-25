@@ -111,12 +111,20 @@ func CreateService(clientID int, name string) error {
 	return err
 }
 
-func DeleteService(clientID int, name string) error {
-	_, err := database.DB.Exec(`
+func DeleteService(clientID int, name string) (bool, error) {
+	result, err := database.DB.Exec(`
 		DELETE FROM services WHERE client_id = $1 AND name = $2
 	`, clientID, name)
+	if err != nil {
+		return false, err
+	}
 
-	return err
+	rowsAffected, err := result.RowsAffected()
+	if err != nil {
+		return false, err
+	}
+
+	return rowsAffected > 0, nil
 }
 
 func SetWorkingHours(clientID int, start, end string, interval int) error {
