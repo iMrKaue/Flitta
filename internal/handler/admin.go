@@ -138,6 +138,12 @@ func parseHour(value string) (time.Time, error) {
 }
 
 func SetWorkingHoursHandler(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodPost {
+		w.Header().Set("Allow", http.MethodPost)
+		http.Error(w, "método não permitido", http.StatusMethodNotAllowed)
+		return
+	}
+
 	clientID := r.Context().Value(middleware.ClientIDKey).(int)
 
 	var req struct {
@@ -203,6 +209,12 @@ func SetWorkingHoursHandler(w http.ResponseWriter, r *http.Request) {
 }
 
 func GetWorkingHourHandler(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodGet {
+		w.Header().Set("Allow", http.MethodGet)
+		http.Error(w, "método não permitido", http.StatusMethodNotAllowed)
+		return
+	}
+
 	clientID := r.Context().Value(middleware.ClientIDKey).(int)
 
 	start, end, interval, err := repository.GetWorkingHours(clientID)
