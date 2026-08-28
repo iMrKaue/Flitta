@@ -91,17 +91,40 @@ func GetServicesHandler(w http.ResponseWriter, r *http.Request) {
 }
 
 func DeleteServiceHandler(w http.ResponseWriter, r *http.Request) {
-	clientID := r.Context().Value(middleware.ClientIDKey).(int)
-	name := r.URL.Query().Get("name")
-
-	err := repository.DeleteService(clientID, name)
-	if err != nil {
-		http.Error(w, "Error deleting service", http.StatusInternalServerError)
+	if r.Method != http.MethodDelete {
+		w.Header().Set("Allow", http.MethodDelete)
+		http.Error(w, "método não permitido", http.StatusMethodNotAllowed)
 		return
 	}
 
-	json.NewEncoder(w).Encode(map[string]string{
-		"message": "Deleted successfully",
+	clientID, ok := r.Context().Value(middleware.ClientIDKey).(int)
+	if !ok {
+		http.Error(w, "cliente não identificado", http.StatusUnauthorized)
+		return
+	}
+
+	name := strings.TrimSpace(r.URL.Query().Get("name"))
+	if name == "" {
+		http.Error(w, "nome do serviço é obrigatório", http.StatusBadRequest)
+		return
+	}
+
+	deleted, err := repository.DeleteService(clientID, name)
+	if err != nil {
+		http.Error(w, "erro ao excluir serviço", http.StatusInternalServerError)
+		return
+	}
+
+	if !deleted {
+		http.Error(w, "serviço não encontrado", http.StatusNotFound)
+		return
+	}
+
+	w.Header().Set("Content-Type", "application/json; charset=utf-8")
+	w.WriteHeader(http.StatusOK)
+
+	_ = json.NewEncoder(w).Encode(map[string]string{
+		"message": "serviço excluído com sucesso",
 	})
 }
 
@@ -115,6 +138,12 @@ func parseHour(value string) (time.Time, error) {
 }
 
 func SetWorkingHoursHandler(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodPost {
+		w.Header().Set("Allow", http.MethodPost)
+		http.Error(w, "método não permitido", http.StatusMethodNotAllowed)
+		return
+	}
+
 	clientID := r.Context().Value(middleware.ClientIDKey).(int)
 
 	var req struct {
@@ -180,6 +209,12 @@ func SetWorkingHoursHandler(w http.ResponseWriter, r *http.Request) {
 }
 
 func GetWorkingHourHandler(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodGet {
+		w.Header().Set("Allow", http.MethodGet)
+		http.Error(w, "método não permitido", http.StatusMethodNotAllowed)
+		return
+	}
+
 	clientID := r.Context().Value(middleware.ClientIDKey).(int)
 
 	start, end, interval, err := repository.GetWorkingHours(clientID)

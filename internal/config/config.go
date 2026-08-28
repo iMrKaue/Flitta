@@ -3,6 +3,7 @@ package config
 import (
 	"log"
 	"os"
+	"strings"
 
 	"github.com/joho/godotenv"
 )
@@ -22,4 +23,41 @@ func GetJWTSecret() []byte {
 	}
 
 	return []byte(secret)
+}
+
+func GetAppEnv() string {
+	return strings.ToLower(strings.TrimSpace(os.Getenv("APP_ENV")))
+}
+
+func IsDevelopment() bool {
+	return GetAppEnv() == "development"
+}
+
+func GetTwilioAuthToken() string {
+	return strings.TrimSpace(os.Getenv("TWILIO_AUTH_TOKEN"))
+}
+
+func GetTwilioWebhookURL() string {
+	return strings.TrimSpace(os.Getenv("TWILIO_WEBHOOK_URL"))
+}
+
+func GetCORSAllowedOrigins() []string {
+	raw := strings.TrimSpace(os.Getenv("CORS_ALLOWED_ORIGINS"))
+	if raw == "" {
+		return nil
+	}
+
+	parts := strings.Split(raw, ",")
+	origins := make([]string, 0, len(parts))
+
+	for _, part := range parts {
+		origin := strings.TrimSpace(part)
+		origin = strings.TrimSuffix(origin, "/")
+
+		if origin != "" {
+			origins = append(origins, origin)
+		}
+	}
+
+	return origins
 }

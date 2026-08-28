@@ -25,7 +25,7 @@ func main() {
 	reminderScheduler := service.NewReminderScheduler(1*time.Minute, 24)
 	reminderScheduler.Start()
 
-	http.HandleFunc("/webhook", handler.WebhookHandler)
+	http.HandleFunc("/webhook", middleware.ValidateTwilioWebhook(handler.WebhookHandler))
 	http.HandleFunc("/appointments", middleware.AuthMiddleware(handler.GetAppointmentsHandler))
 
 	http.HandleFunc("/admin/service/create", middleware.AuthMiddleware(handler.CreateServiceHandler))

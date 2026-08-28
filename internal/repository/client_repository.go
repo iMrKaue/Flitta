@@ -1,6 +1,9 @@
 package repository
 
-import "flitta/internal/database"
+import (
+	"flitta/internal/database"
+	"fmt"
+)
 
 type ClientSettings struct {
 	ID           int    `json:"id"`
@@ -20,6 +23,97 @@ func CreateClient(name, phone, email, password, businessType string) (int, error
 	`, name, phone, email, password, businessType).Scan(&id)
 
 	return id, err
+}
+
+func CreateClientWithDefaults(
+	name string,
+	phone string,
+	email string,
+	password string,
+	businessType string,
+	defaultServices []string,
+) (int, error) {
+	tx, err := database.DB.Begin()
+	if err != nil {
+		return 0, fmt.Errorf(
+			"iniciar transação de cadastro: %w",
+			err,
+		)
+	}
+
+	defer tx.Rollback()
+
+	var clientID int
+
+	err = tx.QueryRow(`
+		INSERT INTO clients (
+			name,
+			phone,
+			email,
+			password,
+			business_type
+		)
+		VALUES ($1, $2, $3, $4, $5)
+		RETURNING id
+	`,
+		name,
+		phone,
+		email,
+		password,
+		businessType,
+	).Scan(&clientID)
+
+	if err != nil {
+		return 0, fmt.Errorf(
+			"criar cliente: %w",
+			err,
+		)
+	}
+
+	for _, serviceName := range defaultServices {
+		if _, err := tx.Exec(`
+			INSERT INTO services (
+				client_id,
+				name
+			)
+			VALUES ($1, $2)
+		`, clientID, serviceName); err != nil {
+			return 0, fmt.Errorf(
+				"criar serviço padrão %q: %w",
+				serviceName,
+				err,
+			)
+		}
+	}
+
+	if _, err := tx.Exec(`
+		INSERT INTO working_hours (
+			client_id,
+			start_time,
+			end_time,
+			interval_minutes
+		)
+		VALUES ($1, $2, $3, $4)
+	`,
+		clientID,
+		"09:00",
+		"18:00",
+		60,
+	); err != nil {
+		return 0, fmt.Errorf(
+			"criar horário padrão: %w",
+			err,
+		)
+	}
+
+	if err := tx.Commit(); err != nil {
+		return 0, fmt.Errorf(
+			"confirmar cadastro: %w",
+			err,
+		)
+	}
+
+	return clientID, nil
 }
 
 func GetBusinessTypeByClientID(clientID int) string {

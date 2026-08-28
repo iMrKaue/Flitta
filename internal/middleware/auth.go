@@ -2,11 +2,9 @@ package middleware
 
 import (
 	"context"
-	"flitta/internal/config"
+	"flitta/internal/service"
 	"net/http"
 	"strings"
-
-	"github.com/golang-jwt/jwt"
 )
 
 type contextKey string
@@ -15,33 +13,48 @@ const ClientIDKey contextKey = "client_id"
 
 func AuthMiddleware(next http.HandlerFunc) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
-
-		authHeader := r.Header.Get("Authorization")
+		authHeader := strings.TrimSpace(
+			r.Header.Get("Authorization"),
+		)
 
 		if authHeader == "" {
-			http.Error(w, "Token obrigatório", http.StatusUnauthorized)
+			http.Error(
+				w,
+				"Token obrigatório",
+				http.StatusUnauthorized,
+			)
 			return
 		}
 
-		tokenString := strings.Replace(authHeader, "Bearer ", "", 1)
+		parts := strings.Fields(authHeader)
 
-		token, err := jwt.Parse(tokenString, func(token *jwt.Token) (interface{}, error) {
-			return config.GetJWTSecret(), nil
-		})
+		if len(parts) != 2 ||
+			!strings.EqualFold(parts[0], "Bearer") ||
+			strings.TrimSpace(parts[1]) == "" {
 
-		if err != nil || !token.Valid {
-			http.Error(w, "Token inválido", http.StatusUnauthorized)
+			http.Error(
+				w,
+				"Token inválido",
+				http.StatusUnauthorized,
+			)
 			return
 		}
 
-		claims, ok := token.Claims.(jwt.MapClaims)
-		if !ok {
-			http.Error(w, "Erro no token", http.StatusUnauthorized)
+		clientID, err := service.ValidateToken(parts[1])
+		if err != nil {
+			http.Error(
+				w,
+				"Token inválido",
+				http.StatusUnauthorized,
+			)
+			return
 		}
 
-		clientID := int(claims["client_id"].(float64))
-
-		ctx := context.WithValue(r.Context(), ClientIDKey, clientID)
+		ctx := context.WithValue(
+			r.Context(),
+			ClientIDKey,
+			clientID,
+		)
 
 		next(w, r.WithContext(ctx))
 	}

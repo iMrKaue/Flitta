@@ -1,11 +1,24 @@
 package service
 
 import (
+	"errors"
 	"flitta/internal/database"
 	"flitta/internal/repository"
 	"flitta/internal/utils"
 	"fmt"
 	"strings"
+
+	"github.com/lib/pq"
+)
+
+var (
+	ErrPhoneAlreadyRegistered = errors.New(
+		"telefone já cadastrado",
+	)
+
+	ErrEmailAlreadyRegistered = errors.New(
+		"email já cadastrado",
+	)
 )
 
 func GetClientByPhone(phone string) (int, error) {
@@ -26,27 +39,68 @@ func GetClientByPhone(phone string) (int, error) {
 	return id, nil
 }
 
-func RegisterClient(name, phone, email, password, businessType string) (string, error) {
+func RegisterClient(
+	name string,
+	phone string,
+	email string,
+	password string,
+	businessType string,
+) (string, error) {
+	name = strings.TrimSpace(name)
 
 	phone = utils.NormalizeCustomerPhone(phone)
-	businessType = NormalizeBusinessType(businessType)
+
+	email = strings.ToLower(
+		strings.TrimSpace(email),
+	)
+
+	businessType = NormalizeBusinessType(
+		businessType,
+	)
 
 	hashed, err := HashPassword(password)
 	if err != nil {
-		return "", err
+		return "", fmt.Errorf(
+			"gerar hash da senha: %w",
+			err,
+		)
 	}
 
-	clientID, err := repository.CreateClient(name, phone, email, hashed, businessType)
+	defaultServices := DefaultServicesByBusinessType(
+		businessType,
+	)
+
+	clientID, err := repository.CreateClientWithDefaults(
+		name,
+		phone,
+		email,
+		hashed,
+		businessType,
+		defaultServices,
+	)
+
 	if err != nil {
-		if strings.Contains(err.Error(), "clients_phone_key") {
-			return "", fmt.Errorf("telefone já cadastrado")
+		var pqErr *pq.Error
+
+		if errors.As(err, &pqErr) {
+			switch pqErr.Constraint {
+			case "clients_phone_key":
+				return "", ErrPhoneAlreadyRegistered
+
+			case "clients_email_normalized_unique":
+				return "", ErrEmailAlreadyRegistered
+			}
 		}
+
 		return "", err
 	}
 
 	token, err := GenerateToken(clientID)
 	if err != nil {
-		return "", err
+		return "", fmt.Errorf(
+			"gerar token após cadastro: %w",
+			err,
+		)
 	}
 
 	return token, nil
@@ -70,5 +124,33 @@ func NormalizeBusinessType(value string) string {
 		return "other"
 	default:
 		return "other"
+	}
+}
+
+func DefaultServicesByBusinessType(businessType string) []string {
+	businessType = NormalizeBusinessType(businessType)
+
+	switch businessType {
+	case "beauty":
+		return []string{"Corte", "Escova", "Progressiva"}
+
+	case "barber":
+		return []string{"Corte", "Barba", "Sobrancelha"}
+
+	case "clinic":
+		return []string{"Consulta", "Retorno", "Avaliação"}
+
+	case "gym":
+		return []string{
+			"Avaliação física",
+			"Aula experimental",
+			"Personal",
+		}
+
+	case "petshop":
+		return []string{"Banho", "Tosa", "Consulta"}
+
+	default:
+		return []string{"Atendimento"}
 	}
 }

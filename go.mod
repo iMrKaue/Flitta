@@ -3,9 +3,18 @@ module flitta
 go 1.25.0
 
 require (
-	github.com/golang-jwt/jwt v3.2.2+incompatible
 	github.com/lib/pq v1.12.3
 	golang.org/x/crypto v0.49.0
 )
 
-require github.com/joho/godotenv v1.5.1
+require (
+	github.com/DATA-DOG/go-sqlmock v1.5.2
+	github.com/golang-jwt/jwt/v5 v5.3.1
+	github.com/joho/godotenv v1.5.1
+	github.com/twilio/twilio-go v1.30.9
+)
+
+require (
+	github.com/golang/mock v1.6.0 // indirect
+	github.com/pkg/errors v0.9.1 // indirect
+)

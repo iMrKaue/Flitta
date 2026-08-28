@@ -6,7 +6,7 @@ import (
 	"fmt"
 )
 
-func GetSession(phone string) (model.Session, error) {
+func GetSession(clientID int, phone string) (model.Session, error) {
 	var s model.Session
 
 	err := database.DB.QueryRow(`
@@ -14,8 +14,9 @@ func GetSession(phone string) (model.Session, error) {
 		COALESCE(selected_appointment_id, 0),
 		COALESCE(suggested_time, '')
 		FROM user_sessions
-		WHERE phone = $1
-	`, phone).Scan(
+		WHERE client_id = $1
+			AND phone = $2
+	`, clientID, phone).Scan(
 		&s.Phone,
 		&s.ClientID,
 		&s.State,
@@ -34,7 +35,7 @@ func SaveSession(s model.Session) error {
 	_, err := database.DB.Exec(`
 	INSERT INTO user_sessions (phone, client_id, state, name, service, date, time, selected_appointment_id, suggested_time)
 	VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9)
-	ON CONFLICT (phone)
+	ON CONFLICT (client_id, phone)
 	DO UPDATE SET
 		state = EXCLUDED.state,
 		name = EXCLUDED.name,
@@ -59,8 +60,12 @@ func SaveSession(s model.Session) error {
 	return err
 }
 
-func DeleteSession(phone string) {
-	database.DB.Exec("DELETE FROM user_sessions WHERE phone = $1", phone)
+func DeleteSession(clientID int, phone string) {
+	database.DB.Exec(`
+		DELETE FROM user_sessions
+		WHERE client_id = $1
+			AND phone = $2
+	`, clientID, phone)
 }
 
 func GetServices(clientID int) []model.SalonService {
@@ -106,12 +111,20 @@ func CreateService(clientID int, name string) error {
 	return err
 }
 
-func DeleteService(clientID int, name string) error {
-	_, err := database.DB.Exec(`
+func DeleteService(clientID int, name string) (bool, error) {
+	result, err := database.DB.Exec(`
 		DELETE FROM services WHERE client_id = $1 AND name = $2
 	`, clientID, name)
+	if err != nil {
+		return false, err
+	}
 
-	return err
+	rowsAffected, err := result.RowsAffected()
+	if err != nil {
+		return false, err
+	}
+
+	return rowsAffected > 0, nil
 }
 
 func SetWorkingHours(clientID int, start, end string, interval int) error {
