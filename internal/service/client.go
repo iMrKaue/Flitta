@@ -40,13 +40,15 @@ func GetClientByPhone(phone string) (int, error) {
 }
 
 func RegisterClient(
-	name string,
+	businessName string,
+	responsibleName string,
 	phone string,
 	email string,
 	password string,
 	businessType string,
 ) (string, error) {
-	name = strings.TrimSpace(name)
+	businessName = strings.TrimSpace(businessName)
+	responsibleName = strings.TrimSpace(responsibleName)
 
 	phone = utils.NormalizeCustomerPhone(phone)
 
@@ -71,7 +73,8 @@ func RegisterClient(
 	)
 
 	clientID, err := repository.CreateClientWithDefaults(
-		name,
+		businessName,
+		responsibleName,
 		phone,
 		email,
 		hashed,

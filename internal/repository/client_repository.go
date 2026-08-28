@@ -26,7 +26,8 @@ func CreateClient(name, phone, email, password, businessType string) (int, error
 }
 
 func CreateClientWithDefaults(
-	name string,
+	businessName string,
+	responsibleName string,
 	phone string,
 	email string,
 	password string,
@@ -56,7 +57,7 @@ func CreateClientWithDefaults(
 		VALUES ($1, $2, $3, $4, $5)
 		RETURNING id
 	`,
-		name,
+		businessName,
 		phone,
 		email,
 		password,
@@ -66,6 +67,30 @@ func CreateClientWithDefaults(
 	if err != nil {
 		return 0, fmt.Errorf(
 			"criar cliente: %w",
+			err,
+		)
+	}
+
+	if _, err := tx.Exec(`
+			INSERT INTO users (
+					client_id,
+					name,
+					email,
+					password,
+					role,
+					active
+			)
+			VALUES ($1, $2, $3, $4, $5, $6)
+	`,
+		clientID,
+		responsibleName,
+		email,
+		password,
+		"owner",
+		true,
+	); err != nil {
+		return 0, fmt.Errorf(
+			"criar usuário proprietário: %w",
 			err,
 		)
 	}

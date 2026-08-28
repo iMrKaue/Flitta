@@ -13,11 +13,12 @@ import (
 )
 
 type RegisterRequest struct {
-	Name         string `json:"name"`
-	Phone        string `json:"phone"`
-	Email        string `json:"email"`
-	Password     string `json:"password"`
-	BusinessType string `json:"business_type"`
+	ResponsibleName string `json:"responsible_name"`
+	BusinessName    string `json:"business_name"`
+	Phone           string `json:"phone"`
+	Email           string `json:"email"`
+	Password        string `json:"password"`
+	BusinessType    string `json:"business_type"`
 }
 
 type LoginRequest struct {
@@ -58,7 +59,8 @@ func RegisterHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	req.Name = strings.TrimSpace(req.Name)
+	req.ResponsibleName = strings.TrimSpace(req.ResponsibleName)
+	req.BusinessName = strings.TrimSpace(req.BusinessName)
 	req.Phone = strings.TrimSpace(req.Phone)
 	req.Email = strings.ToLower(
 		strings.TrimSpace(req.Email),
@@ -67,7 +69,8 @@ func RegisterHandler(w http.ResponseWriter, r *http.Request) {
 		req.BusinessType,
 	)
 
-	if req.Name == "" ||
+	if req.ResponsibleName == "" ||
+		req.BusinessName == "" ||
 		req.Phone == "" ||
 		req.Email == "" ||
 		req.Password == "" ||
@@ -90,7 +93,8 @@ func RegisterHandler(w http.ResponseWriter, r *http.Request) {
 	}
 
 	token, err := service.RegisterClient(
-		req.Name,
+		req.BusinessName,
+		req.ResponsibleName,
 		req.Phone,
 		req.Email,
 		req.Password,
