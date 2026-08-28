@@ -1,10 +1,8 @@
 package handler
 
 import (
-	"database/sql"
 	"encoding/json"
 	"errors"
-	"flitta/internal/database"
 	"flitta/internal/service"
 	"io"
 	"log"
@@ -191,17 +189,16 @@ func LoginHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	var id int
-	var hash string
-
-	err := database.DB.QueryRow(`
-		SELECT id, password
-		FROM clients
-		WHERE LOWER(BTRIM(email)) = $1
-	`, req.Email).Scan(&id, &hash)
+	token, err := service.AuthenticateUser(
+		req.Email,
+		req.Password,
+	)
 
 	if err != nil {
-		if errors.Is(err, sql.ErrNoRows) {
+		if errors.Is(
+			err,
+			service.ErrInvalidCredentials,
+		) {
 			http.Error(
 				w,
 				"Email ou senha inválidos",
@@ -210,28 +207,10 @@ func LoginHandler(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 
-		log.Printf("erro ao consultar cliente no login: %v", err)
-
-		http.Error(
-			w,
-			"Erro interno",
-			http.StatusInternalServerError,
+		log.Printf(
+			"Erro ao autenticar usuário: %v",
+			err,
 		)
-		return
-	}
-
-	if !service.CheckPassword(req.Password, hash) {
-		http.Error(
-			w,
-			"Email ou senha inválidos",
-			http.StatusUnauthorized,
-		)
-		return
-	}
-
-	token, err := service.GenerateToken(id)
-	if err != nil {
-		log.Printf("erro ao gerar token no login: %v", err)
 
 		http.Error(
 			w,
