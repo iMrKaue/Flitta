@@ -2,7 +2,9 @@ package middleware
 
 import (
 	"context"
+	"errors"
 	"flitta/internal/service"
+	"log"
 	"net/http"
 	"strings"
 )
@@ -46,6 +48,33 @@ func AuthMiddleware(next http.HandlerFunc) http.HandlerFunc {
 				w,
 				"Token inválido",
 				http.StatusUnauthorized,
+			)
+			return
+		}
+
+		if err := service.ValidateClientAccess(clientID); err != nil {
+			if errors.Is(
+				err,
+				service.ErrClientAccessBlocked,
+			) {
+				http.Error(
+					w,
+					"Acesso ao estabelecimento suspenso ou expirado",
+					http.StatusForbidden,
+				)
+				return
+			}
+
+			log.Printf(
+				"erro ao validar acesso do estabelecimento %d: %v",
+				clientID,
+				err,
+			)
+
+			http.Error(
+				w,
+				"Erro interno",
+				http.StatusInternalServerError,
 			)
 			return
 		}

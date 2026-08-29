@@ -195,28 +195,40 @@ func LoginHandler(w http.ResponseWriter, r *http.Request) {
 	)
 
 	if err != nil {
-		if errors.Is(
+		switch {
+		case errors.Is(
 			err,
 			service.ErrInvalidCredentials,
-		) {
+		):
 			http.Error(
 				w,
 				"Email ou senha inválidos",
 				http.StatusUnauthorized,
 			)
-			return
+
+		case errors.Is(
+			err,
+			service.ErrClientAccessBlocked,
+		):
+			http.Error(
+				w,
+				"Acesso ao estabelecimento suspenso ou expirado",
+				http.StatusForbidden,
+			)
+
+		default:
+			log.Printf(
+				"Erro ao autenticar usuário: %v",
+				err,
+			)
+
+			http.Error(
+				w,
+				"Erro interno",
+				http.StatusInternalServerError,
+			)
 		}
 
-		log.Printf(
-			"Erro ao autenticar usuário: %v",
-			err,
-		)
-
-		http.Error(
-			w,
-			"Erro interno",
-			http.StatusInternalServerError,
-		)
 		return
 	}
 

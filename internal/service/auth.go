@@ -60,6 +60,10 @@ func AuthenticateUser(
 		return "", ErrInvalidCredentials
 	}
 
+	if err := ValidateClientAccess(clientID); err != nil {
+		return "", err
+	}
+
 	token, err := GenerateToken(clientID)
 	if err != nil {
 		return "", fmt.Errorf(

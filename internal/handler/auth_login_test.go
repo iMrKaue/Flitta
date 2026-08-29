@@ -50,6 +50,19 @@ func TestLoginHandlerAuthenticatesActiveUser(t *testing.T) {
 			),
 		)
 
+	mock.ExpectQuery(
+		`SELECT status, pilot_expires_at FROM clients WHERE id = \$1`,
+	).
+		WithArgs(42).
+		WillReturnRows(
+			sqlmock.NewRows(
+				[]string{"status", "pilot_expires_at"},
+			).AddRow(
+				"active",
+				nil,
+			),
+		)
+
 	body := `{
 		"email": "  OWNER@FLITTA.LOCAL  ",
 		"password": "Teste1234"
@@ -215,6 +228,82 @@ func TestLoginHandlerRejectsInvalidPassword(t *testing.T) {
 			"status esperado %d, recebido %d",
 			http.StatusUnauthorized,
 			recorder.Code,
+		)
+	}
+
+	if err := mock.ExpectationsWereMet(); err != nil {
+		t.Fatalf(
+			"expectativas SQL não atendidas: %v",
+			err,
+		)
+	}
+}
+
+func TestLoginHandlerRejectsBlockedClientAccess(t *testing.T) {
+	db, mock, err := sqlmock.New()
+	if err != nil {
+		t.Fatalf("erro ao criar sqlmock: %v", err)
+	}
+	defer db.Close()
+
+	previousDB := database.DB
+	database.DB = db
+	defer func() {
+		database.DB = previousDB
+	}()
+
+	hash, err := service.HashPassword("Teste1234")
+	if err != nil {
+		t.Fatalf("erro ao gerar hash: %v", err)
+	}
+
+	mock.ExpectQuery(
+		`SELECT client_id, password FROM users WHERE LOWER\(BTRIM\(email\)\) = \$1 AND active = TRUE`,
+	).
+		WithArgs("owner@flitta.local").
+		WillReturnRows(
+			sqlmock.NewRows(
+				[]string{"client_id", "password"},
+			).AddRow(
+				42,
+				hash,
+			),
+		)
+
+	mock.ExpectQuery(
+		`SELECT status, pilot_expires_at FROM clients WHERE id = \$1`,
+	).
+		WithArgs(42).
+		WillReturnRows(
+			sqlmock.NewRows(
+				[]string{"status", "pilot_expires_at"},
+			).AddRow(
+				"suspended",
+				nil,
+			),
+		)
+
+	body := `{
+		"email": "owner@flitta.local",
+		"password": "Teste1234"
+	}`
+
+	request := httptest.NewRequest(
+		http.MethodPost,
+		"/auth/login",
+		strings.NewReader(body),
+	)
+
+	recorder := httptest.NewRecorder()
+
+	LoginHandler(recorder, request)
+
+	if recorder.Code != http.StatusForbidden {
+		t.Fatalf(
+			"status esperado %d, recebido %d: %s",
+			http.StatusForbidden,
+			recorder.Code,
+			recorder.Body.String(),
 		)
 	}
 
