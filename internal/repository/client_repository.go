@@ -9,20 +9,7 @@ type ClientSettings struct {
 	ID           int    `json:"id"`
 	Name         string `json:"name"`
 	Phone        string `json:"phone"`
-	Email        string `json:"email"`
 	BusinessType string `json:"business_type"`
-}
-
-func CreateClient(name, phone, email, password, businessType string) (int, error) {
-	var id int
-
-	err := database.DB.QueryRow(`
-		INSERT INTO clients (name, phone, email, password, business_type)
-		VALUES ($1, $2, $3, $4, $5)
-		RETURNING id
-	`, name, phone, email, password, businessType).Scan(&id)
-
-	return id, err
 }
 
 func CreateClientWithDefaults(
@@ -50,17 +37,13 @@ func CreateClientWithDefaults(
 		INSERT INTO clients (
 			name,
 			phone,
-			email,
-			password,
 			business_type
 		)
-		VALUES ($1, $2, $3, $4, $5)
+		VALUES ($1, $2, $3)
 		RETURNING id
 	`,
 		businessName,
 		phone,
-		email,
-		password,
 		businessType,
 	).Scan(&clientID)
 
@@ -161,14 +144,13 @@ func GetClientSettings(clientID int) (ClientSettings, error) {
 	var client ClientSettings
 
 	err := database.DB.QueryRow(`
-		SELECT id, name, phone, email, business_type
+		SELECT id, name, phone, business_type
 		FROM clients
 		WHERE id = $1
 	`, clientID).Scan(
 		&client.ID,
 		&client.Name,
 		&client.Phone,
-		&client.Email,
 		&client.BusinessType,
 	)
 

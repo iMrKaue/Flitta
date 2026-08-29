@@ -90,7 +90,7 @@ func RegisterClient(
 			case "clients_phone_key":
 				return "", ErrPhoneAlreadyRegistered
 
-			case "clients_email_normalized_unique":
+			case "users_email_normalized_unique":
 				return "", ErrEmailAlreadyRegistered
 			}
 		}

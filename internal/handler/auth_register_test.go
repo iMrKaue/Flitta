@@ -36,8 +36,6 @@ func TestRegisterHandlerCreatesBusinessAndOwner(t *testing.T) {
 		WithArgs(
 			"Flitta Teste",
 			sqlmock.AnyArg(),
-			"owner@flitta.local",
-			sqlmock.AnyArg(),
 			"barber",
 		).
 		WillReturnRows(
