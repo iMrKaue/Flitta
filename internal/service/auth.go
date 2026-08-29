@@ -1,8 +1,12 @@
 package service
 
 import (
+	"database/sql"
 	"errors"
 	"flitta/internal/config"
+	"flitta/internal/repository"
+	"fmt"
+	"strings"
 	"time"
 
 	"github.com/golang-jwt/jwt/v5"
@@ -10,6 +14,10 @@ import (
 )
 
 var ErrInvalidToken = errors.New("token inválido")
+
+var ErrInvalidCredentials = errors.New(
+	"email ou senha inválidos",
+)
 
 type authClaims struct {
 	ClientID int `json:"client_id"`
@@ -24,6 +32,47 @@ func HashPassword(password string) (string, error) {
 func CheckPassword(password, hash string) bool {
 	err := bcrypt.CompareHashAndPassword([]byte(hash), []byte(password))
 	return err == nil
+}
+
+func AuthenticateUser(
+	email string,
+	password string,
+) (string, error) {
+	email = strings.ToLower(
+		strings.TrimSpace(email),
+	)
+
+	clientID, hash, err :=
+		repository.GetActiveUserCredentialsByEmail(email)
+
+	if err != nil {
+		if errors.Is(err, sql.ErrNoRows) {
+			return "", ErrInvalidCredentials
+		}
+
+		return "", fmt.Errorf(
+			"consultar usuário no login: %w",
+			err,
+		)
+	}
+
+	if !CheckPassword(password, hash) {
+		return "", ErrInvalidCredentials
+	}
+
+	if err := ValidateClientAccess(clientID); err != nil {
+		return "", err
+	}
+
+	token, err := GenerateToken(clientID)
+	if err != nil {
+		return "", fmt.Errorf(
+			"gerar token no login: %w",
+			err,
+		)
+	}
+
+	return token, nil
 }
 
 func GenerateToken(clientID int) (string, error) {

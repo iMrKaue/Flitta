@@ -423,6 +423,11 @@ func GetAllPendingReminderAppointments(hoursBefore int) ([]PendingReminderWithCo
 		FROM appointments a
 		INNER JOIN clients c ON c.id = a.client_id
 		WHERE COALESCE(a.reminder_sent, false) = false
+		  AND c.status = 'active'
+		  AND (
+			c.pilot_expires_at IS NULL
+			OR c.pilot_expires_at > NOW()
+		  )
 		  AND a.status IN ('scheduled', 'confirmed')
 		  AND (a.date::date + a.time::time) >= (NOW() AT TIME ZONE 'America/Sao_Paulo')
 		  AND (a.date::date + a.time::time) <= (NOW() AT TIME ZONE 'America/Sao_Paulo') + ($1::text || ' hours')::interval

@@ -1,10 +1,8 @@
 package handler
 
 import (
-	"database/sql"
 	"encoding/json"
 	"errors"
-	"flitta/internal/database"
 	"flitta/internal/service"
 	"io"
 	"log"
@@ -13,11 +11,12 @@ import (
 )
 
 type RegisterRequest struct {
-	Name         string `json:"name"`
-	Phone        string `json:"phone"`
-	Email        string `json:"email"`
-	Password     string `json:"password"`
-	BusinessType string `json:"business_type"`
+	ResponsibleName string `json:"responsible_name"`
+	BusinessName    string `json:"business_name"`
+	Phone           string `json:"phone"`
+	Email           string `json:"email"`
+	Password        string `json:"password"`
+	BusinessType    string `json:"business_type"`
 }
 
 type LoginRequest struct {
@@ -58,7 +57,8 @@ func RegisterHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	req.Name = strings.TrimSpace(req.Name)
+	req.ResponsibleName = strings.TrimSpace(req.ResponsibleName)
+	req.BusinessName = strings.TrimSpace(req.BusinessName)
 	req.Phone = strings.TrimSpace(req.Phone)
 	req.Email = strings.ToLower(
 		strings.TrimSpace(req.Email),
@@ -67,7 +67,8 @@ func RegisterHandler(w http.ResponseWriter, r *http.Request) {
 		req.BusinessType,
 	)
 
-	if req.Name == "" ||
+	if req.ResponsibleName == "" ||
+		req.BusinessName == "" ||
 		req.Phone == "" ||
 		req.Email == "" ||
 		req.Password == "" ||
@@ -90,7 +91,8 @@ func RegisterHandler(w http.ResponseWriter, r *http.Request) {
 	}
 
 	token, err := service.RegisterClient(
-		req.Name,
+		req.BusinessName,
+		req.ResponsibleName,
 		req.Phone,
 		req.Email,
 		req.Password,
@@ -187,53 +189,46 @@ func LoginHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	var id int
-	var hash string
-
-	err := database.DB.QueryRow(`
-		SELECT id, password
-		FROM clients
-		WHERE LOWER(BTRIM(email)) = $1
-	`, req.Email).Scan(&id, &hash)
+	token, err := service.AuthenticateUser(
+		req.Email,
+		req.Password,
+	)
 
 	if err != nil {
-		if errors.Is(err, sql.ErrNoRows) {
+		switch {
+		case errors.Is(
+			err,
+			service.ErrInvalidCredentials,
+		):
 			http.Error(
 				w,
 				"Email ou senha inválidos",
 				http.StatusUnauthorized,
 			)
-			return
+
+		case errors.Is(
+			err,
+			service.ErrClientAccessBlocked,
+		):
+			http.Error(
+				w,
+				"Acesso ao estabelecimento suspenso ou expirado",
+				http.StatusForbidden,
+			)
+
+		default:
+			log.Printf(
+				"Erro ao autenticar usuário: %v",
+				err,
+			)
+
+			http.Error(
+				w,
+				"Erro interno",
+				http.StatusInternalServerError,
+			)
 		}
 
-		log.Printf("erro ao consultar cliente no login: %v", err)
-
-		http.Error(
-			w,
-			"Erro interno",
-			http.StatusInternalServerError,
-		)
-		return
-	}
-
-	if !service.CheckPassword(req.Password, hash) {
-		http.Error(
-			w,
-			"Email ou senha inválidos",
-			http.StatusUnauthorized,
-		)
-		return
-	}
-
-	token, err := service.GenerateToken(id)
-	if err != nil {
-		log.Printf("erro ao gerar token no login: %v", err)
-
-		http.Error(
-			w,
-			"Erro interno",
-			http.StatusInternalServerError,
-		)
 		return
 	}
 

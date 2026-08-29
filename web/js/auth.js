@@ -33,7 +33,8 @@ async function login() {
 }
 
 async function register() {
-  const name = document.getElementById("registerName").value;
+  const responsibleName = document.getElementById("registerResponsibleName").value;
+  const businessName = document.getElementById("registerName").value;
   const phone = document.getElementById("registerPhone").value;
   const email = document.getElementById("registerEmail").value;
   const password = document.getElementById("registerPassword").value;
@@ -41,7 +42,7 @@ async function register() {
 
   const errorElement = document.getElementById("registerError");
 
-  if (!name || !phone || !email || !password || !businessType) {
+  if (!responsibleName || !businessName || !phone || !email || !password || !businessType) {
     localStorage.removeItem("token");
     errorElement.innerText = "Preencha todos os campos";
     return;
@@ -54,7 +55,8 @@ async function register() {
         "Content-Type": "application/json"
       },
       body: JSON.stringify({
-        name,
+        responsible_name: responsibleName,
+        business_name: businessName,
         phone,
         email,
         password,

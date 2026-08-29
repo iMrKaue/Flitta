@@ -25,6 +25,10 @@ type twimlResponse struct {
 	Message string   `xml:"Message"`
 }
 
+type emptyTwiMLResponse struct {
+	XMLName xml.Name `xml:"Response"`
+}
+
 func writeTwiMLResponse(
 	w http.ResponseWriter,
 	message string,
@@ -32,6 +36,25 @@ func writeTwiMLResponse(
 	payload, err := xml.Marshal(twimlResponse{
 		Message: message,
 	})
+	if err != nil {
+		return err
+	}
+
+	w.Header().Set(
+		"Content-Type",
+		"application/xml; charset=utf-8",
+	)
+
+	_, err = w.Write(payload)
+	return err
+}
+
+func writeEmptyTwiMLResponse(
+	w http.ResponseWriter,
+) error {
+	payload, err := xml.Marshal(
+		emptyTwiMLResponse{},
+	)
 	if err != nil {
 		return err
 	}
@@ -108,6 +131,44 @@ func WebhookHandler(w http.ResponseWriter, r *http.Request) {
 		log.Printf(
 			"erro ao resolver canal de comunicação %s: %v",
 			channelAddress,
+			err,
+		)
+
+		http.Error(
+			w,
+			"Erro interno",
+			http.StatusInternalServerError,
+		)
+		return
+	}
+
+	if err := service.ValidateClientAccess(clientID); err != nil {
+		if errors.Is(
+			err,
+			service.ErrClientAccessBlocked,
+		) {
+			if isTwilioRequest {
+				if err := writeEmptyTwiMLResponse(w); err != nil {
+					log.Printf(
+						"erro ao gerar TwiML vazio: %v",
+						err,
+					)
+				}
+
+				return
+			}
+
+			http.Error(
+				w,
+				"Estabelecimento indisponível",
+				http.StatusForbidden,
+			)
+			return
+		}
+
+		log.Printf(
+			"erro ao validar acesso do estabelecimento %d: %v",
+			clientID,
 			err,
 		)
 
