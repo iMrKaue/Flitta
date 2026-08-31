@@ -472,56 +472,172 @@ async function loadCompanySettings() {
     try {
         const data = await apiFetch("/admin/company/get");
 
-        if(!data) {
-            companyStatus.innerText = "Não foi possível carregar os dados da empresa.";
+        if (!data) {
+            companyStatus.innerText =
+                "Não foi possível carregar o perfil do estabelecimento.";
             return;
         }
 
-        document.getElementById("companyName").value = data.name || "";
-        document.getElementById("companyPhone").value = data.phone || "";
-        document.getElementById("companyBusinessType").value = data.business_type || "other";
+        document.getElementById("companyName").value =
+            data.name || "";
 
-        companyStatus.innerText = `Empresa carregada: ${data.name || "sem nome"} • ${businessTypeLabel(data.business_type)}`;
+        document.getElementById("companyPhone").value =
+            data.phone || "";
+
+        document.getElementById("companyBusinessType").value =
+            data.business_type || "other";
+
+        document.getElementById("companyDescription").value =
+            data.description || "";
+
+        document.getElementById("companyAddress").value =
+            data.address || "";
+
+        document.getElementById("companyCity").value =
+            data.city || "";
+
+        document.getElementById("companyInstagram").value =
+            data.instagram || "";
+
+        document.getElementById("companyWelcomeMessage").value =
+            data.welcome_message || "";
+
+        companyStatus.innerText =
+            `Perfil carregado: ${data.name || "sem nome"} • ` +
+            businessTypeLabel(data.business_type);
     } catch (err) {
-        companyStatus.innerText = "Não foi possível carregar os dados da empresa.";
+        companyStatus.innerText =
+            "Não foi possível carregar o perfil do estabelecimento.";
     }
-} 
+}
 
 async function updateCompanySettings() {
-    const nameInput = document.getElementById("companyName");
-    const phoneInput = document.getElementById("companyPhone");
-    const businessTypeInput = document.getElementById("companyBusinessType");
-    const companyStatus = document.getElementById("companyStatus");
+    const nameInput =
+        document.getElementById("companyName");
+
+    const phoneInput =
+        document.getElementById("companyPhone");
+
+    const businessTypeInput =
+        document.getElementById("companyBusinessType");
+
+    const descriptionInput =
+        document.getElementById("companyDescription");
+
+    const addressInput =
+        document.getElementById("companyAddress");
+
+    const cityInput =
+        document.getElementById("companyCity");
+
+    const instagramInput =
+        document.getElementById("companyInstagram");
+
+    const welcomeMessageInput =
+        document.getElementById("companyWelcomeMessage");
+
+    const companyStatus =
+        document.getElementById("companyStatus");
 
     const name = nameInput.value.trim();
     const phone = phoneInput.value.trim();
     const business_type = businessTypeInput.value;
 
-    if(!name) {
+    const description =
+        descriptionInput.value.trim();
+
+    const address =
+        addressInput.value.trim();
+
+    const city =
+        cityInput.value.trim();
+
+    const instagram =
+        instagramInput.value.trim();
+
+    const welcome_message =
+        welcomeMessageInput.value.trim();
+
+    if (!name) {
         alert("Digite o nome do estabelecimento.");
+        nameInput.focus();
         return;
     }
 
     if (!phone) {
         alert("Digite o WhatsApp do estabelecimento.");
+        phoneInput.focus();
         return;
     }
 
+    if (city.length > 120) {
+        alert("A cidade pode ter no máximo 120 caracteres.");
+        cityInput.focus();
+        return;
+    }
+
+    if (instagram.length > 100) {
+        alert("O Instagram pode ter no máximo 100 caracteres.");
+        instagramInput.focus();
+        return;
+    }
+
+    if (address.length > 500) {
+        alert("O endereço pode ter no máximo 500 caracteres.");
+        addressInput.focus();
+        return;
+    }
+
+    if (description.length > 2000) {
+        alert("A descrição pode ter no máximo 2000 caracteres.");
+        descriptionInput.focus();
+        return;
+    }
+
+    if (welcome_message.length > 2000) {
+        alert(
+            "A mensagem de boas-vindas pode ter no máximo 2000 caracteres."
+        );
+        welcomeMessageInput.focus();
+        return;
+    }
+
+    companyStatus.innerText =
+        "Salvando perfil do estabelecimento...";
+
     try {
-        const data = await apiFetch("/admin/company/update", {
-            method: "PUT",
-            body: JSON.stringify({
-                name,
-                phone,
-                business_type
-            })
-        });
+        const data = await apiFetch(
+            "/admin/company/update",
+            {
+                method: "PUT",
+                body: JSON.stringify({
+                    name,
+                    phone,
+                    business_type,
+                    description,
+                    address,
+                    city,
+                    instagram,
+                    welcome_message
+                })
+            }
+        );
 
-        companyStatus.innerText = `Dados atualizados: ${data.name} • ${businessTypeLabel(data.business_type)}`;
+        companyStatus.innerText =
+            `Perfil atualizado: ${data.name} • ` +
+            businessTypeLabel(data.business_type);
 
-        alert("Dados da empresa salvos com sucesso.");
+        alert(
+            "Perfil do estabelecimento salvo com sucesso."
+        );
     } catch (err) {
-        alert(err.message || "Não foi possível atualizar os dados da empresa.");
+        companyStatus.innerText =
+            "Não foi possível salvar o perfil.";
+
+        alert(
+            err.message ||
+            "Não foi possível atualizar os dados do estabelecimento."
+        );
     }
 }
 

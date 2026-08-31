@@ -255,46 +255,136 @@ func UpdateCompanySettingsHandler(w http.ResponseWriter, r *http.Request) {
 	clientID := r.Context().Value(middleware.ClientIDKey).(int)
 
 	var req struct {
-		Name         string `json:"name"`
-		Phone        string `json:"phone"`
-		BusinessType string `json:"business_type"`
+		Name           string `json:"name"`
+		Phone          string `json:"phone"`
+		BusinessType   string `json:"business_type"`
+		Description    string `json:"description"`
+		Address        string `json:"address"`
+		City           string `json:"city"`
+		Instagram      string `json:"instagram"`
+		WelcomeMessage string `json:"welcome_message"`
 	}
 
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-		http.Error(w, "dados inválidos", http.StatusBadRequest)
+		http.Error(
+			w,
+			"dados inválidos",
+			http.StatusBadRequest,
+		)
 		return
 	}
 
 	req.Name = strings.TrimSpace(req.Name)
 	req.Phone = strings.TrimSpace(req.Phone)
 	req.BusinessType = strings.TrimSpace(req.BusinessType)
+	req.Description = strings.TrimSpace(req.Description)
+	req.Address = strings.TrimSpace(req.Address)
+	req.City = strings.TrimSpace(req.City)
+	req.Instagram = strings.TrimSpace(req.Instagram)
+	req.WelcomeMessage = strings.TrimSpace(req.WelcomeMessage)
 
 	if req.Name == "" {
-		http.Error(w, "nome da empresa é obrigatório", http.StatusBadRequest)
+		http.Error(
+			w,
+			"nome da empresa é obrigatório",
+			http.StatusBadRequest,
+		)
 		return
 	}
 
 	if req.Phone == "" {
-		http.Error(w, "telefone da empresa é obrigatório", http.StatusBadRequest)
+		http.Error(
+			w,
+			"telefone da empresa é obrigatório",
+			http.StatusBadRequest,
+		)
+		return
+	}
+
+	if len(req.City) > 120 {
+		http.Error(
+			w,
+			"cidade muito longa",
+			http.StatusBadRequest,
+		)
+		return
+	}
+
+	if len(req.Instagram) > 100 {
+		http.Error(
+			w,
+			"Instagram muito longo",
+			http.StatusBadRequest,
+		)
+		return
+	}
+
+	if len(req.Description) > 2000 {
+		http.Error(
+			w,
+			"descrição muito longa",
+			http.StatusBadRequest,
+		)
+		return
+	}
+
+	if len(req.Address) > 500 {
+		http.Error(
+			w,
+			"endereço muito longo",
+			http.StatusBadRequest,
+		)
+		return
+	}
+
+	if len(req.WelcomeMessage) > 2000 {
+		http.Error(
+			w,
+			"mensagem de boas-vindas muito longa",
+			http.StatusBadRequest,
+		)
 		return
 	}
 
 	phone := utils.NormalizeCustomerPhone(req.Phone)
 	businessType := utils.NormalizeBusinessType(req.BusinessType)
 
-	err := repository.UpdateClientSettings(clientID, req.Name, phone, businessType)
+	err := repository.UpdateClientSettings(
+		clientID,
+		req.Name,
+		phone,
+		businessType,
+		req.Description,
+		req.Address,
+		req.City,
+		req.Instagram,
+		req.WelcomeMessage,
+	)
+
 	if err != nil {
-		http.Error(w, "erro ao atualizar dados da empresa", http.StatusInternalServerError)
+		http.Error(
+			w,
+			"erro ao atualizar dados da empresa",
+			http.StatusInternalServerError,
+		)
 		return
 	}
 
 	client, err := repository.GetClientSettings(clientID)
 	if err != nil {
-		http.Error(w, "erro ao buscar dados atualizados", http.StatusInternalServerError)
+		http.Error(
+			w,
+			"erro ao buscar dados atualizados",
+			http.StatusInternalServerError,
+		)
 		return
 	}
 
-	w.Header().Set("Content-Type", "application/json")
+	w.Header().Set(
+		"Content-Type",
+		"application/json",
+	)
+
 	json.NewEncoder(w).Encode(client)
 }
 

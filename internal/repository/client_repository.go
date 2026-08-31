@@ -6,10 +6,15 @@ import (
 )
 
 type ClientSettings struct {
-	ID           int    `json:"id"`
-	Name         string `json:"name"`
-	Phone        string `json:"phone"`
-	BusinessType string `json:"business_type"`
+	ID             int    `json:"id"`
+	Name           string `json:"name"`
+	Phone          string `json:"phone"`
+	BusinessType   string `json:"business_type"`
+	Description    string `json:"description"`
+	Address        string `json:"address"`
+	City           string `json:"city"`
+	Instagram      string `json:"instagram"`
+	WelcomeMessage string `json:"welcome_message"`
 }
 
 func CreateClientWithDefaults(
@@ -144,7 +149,16 @@ func GetClientSettings(clientID int) (ClientSettings, error) {
 	var client ClientSettings
 
 	err := database.DB.QueryRow(`
-		SELECT id, name, phone, business_type
+		SELECT
+			id,
+			name,
+			phone,
+			business_type,
+			COALESCE(description, ''),
+			COALESCE(address, ''),
+			COALESCE(city, ''),
+			COALESCE(instagram, ''),
+			COALESCE(welcome_message, '')
 		FROM clients
 		WHERE id = $1
 	`, clientID).Scan(
@@ -152,19 +166,50 @@ func GetClientSettings(clientID int) (ClientSettings, error) {
 		&client.Name,
 		&client.Phone,
 		&client.BusinessType,
+		&client.Description,
+		&client.Address,
+		&client.City,
+		&client.Instagram,
+		&client.WelcomeMessage,
 	)
 
 	return client, err
 }
 
-func UpdateClientSettings(clientID int, name, phone, businessType string) error {
+func UpdateClientSettings(
+	clientID int,
+	name string,
+	phone string,
+	businessType string,
+	description string,
+	address string,
+	city string,
+	instagram string,
+	welcomeMessage string,
+) error {
 	_, err := database.DB.Exec(`
 		UPDATE clients
-		SET name = $1,
-		    phone = $2,
-		    business_type = $3
-		WHERE id = $4
-	`, name, phone, businessType, clientID)
+		SET
+			name = $1,
+			phone = $2,
+			business_type = $3,
+			description = NULLIF(BTRIM($4), ''),
+			address = NULLIF(BTRIM($5), ''),
+			city = NULLIF(BTRIM($6), ''),
+			instagram = NULLIF(BTRIM($7), ''),
+			welcome_message = NULLIF(BTRIM($8), '')
+		WHERE id = $9
+	`,
+		name,
+		phone,
+		businessType,
+		description,
+		address,
+		city,
+		instagram,
+		welcomeMessage,
+		clientID,
+	)
 
 	return err
 }

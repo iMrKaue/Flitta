@@ -15,10 +15,10 @@
                 <h1>Flitta</h1>
                 <p>Gerencie sua agenda, serviços e horários de funcionamento.</p>
             </div>
-    
+
             <button onclick="logout()">Sair</button>
         </header>
-    
+
         <section class="summary-grid">
             <div class="summary-card">
                 <span>📅</span>
@@ -27,7 +27,7 @@
                     <small>agendamentos exibidos</small>
                 </div>
             </div>
-    
+
             <div class="summary-card">
                 <span>⚙️</span>
                 <div>
@@ -35,7 +35,7 @@
                     <small>serviços ativos</small>
                 </div>
             </div>
-    
+
             <div class="summary-card">
                 <span>⏰</span>
                 <div>
@@ -44,7 +44,7 @@
                 </div>
             </div>
         </section>
-    
+
         <section class="card">
             <div class="section-title appointments-title">
                 <div>
@@ -82,43 +82,130 @@
         <section class="card">
             <div class="section-title">
                 <div>
-                    <h2>🏢 Dados da empresa</h2>
-                    <p>Atualize as informações básicas do estabelecimento.</p>
+                    <h2>🏢 Perfil do estabelecimento</h2>
+                    <p>
+                        Essas informações ajudam o Flitta a conhecer melhor
+                        o seu negócio e atender seus clientes.
+                    </p>
                 </div>
             </div>
 
             <div class="company-grid">
-                <input
-                    id="companyName"
-                    name="companyName"
-                    placeholder="Nome do estabelecimento"
-                    autocomplete="organization"
-                >
+                <div class="company-field">
+                    <label for="companyName">Nome do estabelecimento</label>
+                    <input
+                        id="companyName"
+                        name="companyName"
+                        placeholder="Ex.: Barbearia Central"
+                        autocomplete="organization"
+                    >
+                </div>
 
-                <input
-                    id="companyPhone"
-                    name="companyPhone"
-                    placeholder="WhatsApp do estabelecimento"
-                    autocomplete="tel"
-                >
+                <div class="company-field">
+                    <label for="companyPhone">WhatsApp do estabelecimento</label>
+                    <input
+                        id="companyPhone"
+                        name="companyPhone"
+                        placeholder="Ex.: (11) 99999-9999"
+                        autocomplete="tel"
+                    >
+                </div>
 
-                <select id="companyBusinessType" name="companyBusinessType">
-                    <option value="beauty">Salão / Estética</option>
-                    <option value="barber">Barbearia</option>
-                    <option value="clinic">Clínica</option>
-                    <option value="gym">Academia / Personal</option>
-                    <option value="petshop">Petshop</option>
-                    <option value="other">Outro</option> 
-                </select>
+                <div class="company-field">
+                    <label for="companyBusinessType">Tipo de negócio</label>
+                    <select
+                        id="companyBusinessType"
+                        name="companyBusinessType"
+                    >
+                        <option value="beauty">Salão / Estética</option>
+                        <option value="barber">Barbearia</option>
+                        <option value="clinic">Clínica</option>
+                        <option value="gym">Academia / Personal</option>
+                        <option value="petshop">Petshop</option>
+                        <option value="other">Outro</option>
+                    </select>
+                </div>
 
-                <button onclick="updateCompanySettings()">Salvar Dados</button>
+                <div class="company-field">
+                    <label for="companyCity">Cidade</label>
+                    <input
+                        id="companyCity"
+                        name="companyCity"
+                        placeholder="Ex.: São Paulo"
+                        maxlength="120"
+                        autocomplete="address-level2"
+                    >
+                </div>
+
+                <div class="company-field">
+                    <label for="companyInstagram">Instagram</label>
+                    <input
+                        id="companyInstagram"
+                        name="companyInstagram"
+                        placeholder="Ex.: @barbeariacentral"
+                        maxlength="100"
+                    >
+                </div>
+
+                <div class="company-field company-field-wide">
+                    <label for="companyAddress">Endereço</label>
+                    <input
+                        id="companyAddress"
+                        name="companyAddress"
+                        placeholder="Ex.: Rua das Flores, 100 - Centro"
+                        maxlength="500"
+                        autocomplete="street-address"
+                    >
+                </div>
+
+                <div class="company-field company-field-wide">
+                    <label for="companyDescription">
+                        Sobre o estabelecimento
+                    </label>
+
+                    <textarea
+                        id="companyDescription"
+                        name="companyDescription"
+                        placeholder="Conte um pouco sobre o estabelecimento, especialidades e diferenciais."
+                        maxlength="2000"
+                    ></textarea>
+
+                    <span class="company-field-help">
+                        Essas informações poderão ser usadas pelo Flitta
+                        para apresentar o negócio aos clientes.
+                    </span>
+                </div>
+
+                <div class="company-field company-field-wide">
+                    <label for="companyWelcomeMessage">
+                        Mensagem de boas-vindas
+                    </label>
+
+                    <textarea
+                        id="companyWelcomeMessage"
+                        name="companyWelcomeMessage"
+                        placeholder="Ex.: Olá! Seja bem-vindo à Barbearia Central. Como podemos ajudar?"
+                        maxlength="2000"
+                    ></textarea>
+
+                    <span class="company-field-help">
+                        Essa é a mensagem que o Flitta poderá enviar depois
+                        que o cliente iniciar a conversa no WhatsApp.
+                    </span>
+                </div>
+
+                <div class="company-actions company-field-wide">
+                    <button onclick="updateCompanySettings()">
+                        Salvar perfil
+                    </button>
+                </div>
             </div>
 
             <p id="companyStatus" class="form-helper">
-                Carregando dados da empresa...
+                Carregando perfil do estabelecimento...
             </p>
         </section>
-    
+
         <section class="card">
             <div class="section-title">
                 <div>
@@ -126,23 +213,23 @@
                     <p>Cadastre os serviços que seus clientes podem agendar.</p>
                 </div>
             </div>
-    
+
             <ul id="services"></ul>
-    
+
             <div class="form-incline">
-                <input 
-                    id="newService" 
+                <input
+                    id="newService"
                     name="serviceName"
                     placeholder="Ex: Corte, Consulta, Progressiva"
                     autocomplete="off"
                 >
-            
-                <input 
-                    id="newServiceDuration" 
+
+                <input
+                    id="newServiceDuration"
                     name="serviceDuration"
-                    type="number" 
-                    min="15" 
-                    step="15" 
+                    type="number"
+                    min="15"
+                    step="15"
                     placeholder="Duração em minutos"
                     autocomplete="off"
                 >
@@ -156,11 +243,11 @@
                     placeholder="Preço em R$"
                     autocomplete="off"
                 >
-            
+
                 <button onclick="createService()">Adicionar serviço</button>
             </div>
         </section>
-    
+
         <section class="card">
             <div class="section-title">
                 <div>
@@ -168,24 +255,24 @@
                     <p>Defina o intervalo em que os agendamentos poderão acontecer.</p>
                 </div>
             </div>
-    
+
             <div class="form-incline">
-                <input 
-                    id="start" 
+                <input
+                    id="start"
                     name="workingStart"
                     placeholder="Início: 09:00"
                     autocomplete="off"
                 >
-            
-                <input 
-                    id="end" 
+
+                <input
+                    id="end"
                     name="workingEnd"
                     placeholder="Fim: 18:00"
                     autocomplete="off"
                 >
-            
-                <input 
-                    id="interval" 
+
+                <input
+                    id="interval"
                     name="workingInterval"
                     type="number"
                     min="15"
@@ -193,7 +280,7 @@
                     placeholder="Intervalo: 30"
                     autocomplete="off"
                 >
-            
+
                 <button onclick="setHours()">Salvar horários</button>
             </div>
 
@@ -201,11 +288,11 @@
                 Carregando horários configurados...
             </p>
         </section>
-    
+
     </div>
 
     <script src="js/api.js"></script>
     <script src="js/main.js"></script>
-    
+
 </body>
 </html>
