@@ -36,6 +36,8 @@ func main() {
 	http.HandleFunc("/admin/professionals/list", middleware.AuthMiddleware(handler.ListProfessionalsHandler))
 	http.HandleFunc("/admin/professionals/active", middleware.AuthMiddleware(handler.SetProfessionalActiveHandler))
 	http.HandleFunc("/admin/professionals/services", middleware.AuthMiddleware(handler.ReplaceProfessionalServicesHandler))
+	http.HandleFunc("/admin/professionals/hours", middleware.AuthMiddleware(handler.ReplaceProfessionalWorkingHoursHandler))
+	http.HandleFunc("/admin/professionals/hours/list", middleware.AuthMiddleware(handler.GetProfessionalWorkingHoursHandler))
 
 	http.HandleFunc("/admin/hours/set", middleware.AuthMiddleware(handler.SetWorkingHoursHandler))
 	http.HandleFunc("/admin/hours/get", middleware.AuthMiddleware(handler.GetWorkingHourHandler))
