@@ -119,6 +119,13 @@ type AppointmentTimeRow struct {
 	Service string
 }
 
+type AppointmentIntervalRow struct {
+	ID              int
+	ProfessionalID  int
+	Time            string
+	DurationMinutes int
+}
+
 func ListAppointmentSlotsForDate(clientID int, date string) ([]AppointmentTimeRow, error) {
 	rows, err := database.DB.Query(`
 	    SELECT time, service
@@ -166,6 +173,69 @@ func ListAppointmentSlotsForDateExcept(clientID int, date string, exceptID int) 
 		list = append(list, r)
 	}
 	return list, rows.Err()
+}
+
+// ListProfessionalAppointmentIntervalsForDate retorna os agendamentos
+// do profissional e também agendamentos legados sem professional_id,
+// que bloqueiam a disponibilidade durante a transição.
+func ListProfessionalAppointmentIntervalsForDate(
+	clientID int,
+	professionalID int,
+	date string,
+	exceptID int,
+) ([]AppointmentIntervalRow, error) {
+	rows, err := database.DB.Query(`
+		SELECT
+			id,
+			COALESCE(professional_id, 0),
+			time,
+			duration_snapshot
+		FROM appointments
+		WHERE client_id = $1
+			AND(
+				professional_id = $2
+				OR professional_id IS NULL
+			)
+			AND date = $3
+			AND status IN ('scheduled', 'confirmed')
+			AND ($4 = 0 OR id <> $4)
+		ORDER BY time ASC, id ASC
+	`,
+		clientID,
+		professionalID,
+		date,
+		exceptID,
+	)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	appointments := make([]AppointmentIntervalRow, 0)
+
+	for rows.Next() {
+		var appointment AppointmentIntervalRow
+
+		if err := rows.Scan(
+			&appointment.ID,
+			&appointment.ProfessionalID,
+			&appointment.Time,
+			&appointment.DurationMinutes,
+		); err != nil {
+			return nil, err
+		}
+
+		appointments = append(
+			appointments,
+			appointment,
+		)
+	}
+
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+
+	return appointments, nil
 }
 
 func GetAppointmentForReschedule(

@@ -20,6 +20,14 @@ var (
 	ErrProfessionalServiceNotFound = errors.New(
 		"serviço não pertence ao estabelecimento",
 	)
+
+	ErrProfessionalInactive = errors.New(
+		"profissional inativo",
+	)
+
+	ErrProfessionalServiceUnavailable = errors.New(
+		"serviço não disponível para este profissioanl",
+	)
 )
 
 func CreateProfessional(
@@ -283,4 +291,83 @@ func ReplaceProfessionalServices(
 	}
 
 	return nil
+}
+
+func GetProfessionalServiceForBooking(
+	clientID int,
+	professionalID int,
+	serviceName string,
+) (model.SalonService, error) {
+	var service model.SalonService
+
+	serviceName = strings.TrimSpace(serviceName)
+	if serviceName == "" {
+		return service, ErrProfessionalServiceUnavailable
+	}
+
+	var active bool
+
+	err := database.DB.QueryRow(`
+		SELECT active
+		FROM professionals
+		WHERE id = $1
+			AND client_id = $2
+	`,
+		professionalID,
+		clientID,
+	).Scan(&active)
+
+	if errors.Is(err, sql.ErrNoRows) {
+		return service, ErrProfessionalNotFound
+	}
+
+	if err != nil {
+		return service, err
+	}
+
+	if !active {
+		return service, ErrProfessionalInactive
+	}
+
+	err = database.DB.QueryRow(`
+		SELECT
+			s.id,
+			s.name,
+			s.duration,
+			s.price
+		FROM professional_services ps
+		INNER JOIN services s
+			ON s.id = ps.service_id
+			AND s.client_id = ps.client_id
+		WHERE ps.client_id = $1
+			AND ps.professional_id = $2
+			AND LOWER(BTRIM(s.name)) = LOWER(BTRIM($3))
+		ORDER BY s.id ASC
+		LIMIT 1
+	`,
+		clientID,
+		professionalID,
+		serviceName,
+	).Scan(
+		&service.ID,
+		&service.Name,
+		&service.Duration,
+		&service.Price,
+	)
+
+	if errors.Is(err, sql.ErrNoRows) {
+		return model.SalonService{},
+			ErrProfessionalServiceUnavailable
+	}
+
+	if err != nil {
+		return model.SalonService{}, err
+	}
+
+	if service.Duration <= 0 {
+		return model.SalonService{},
+			ErrProfessionalServiceUnavailable
+	}
+
+	return service, nil
 }

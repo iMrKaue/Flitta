@@ -1,6 +1,7 @@
 package repository
 
 import (
+	"database/sql"
 	"errors"
 	"flitta/internal/database"
 	"testing"
@@ -458,6 +459,226 @@ func TestReplaceProfessionalServicesRollsBackWhenServiceIsInvalid(
 		t.Fatalf(
 			"esperado ErrProfessionalServiceNotFound, recebido %v",
 			err,
+		)
+	}
+
+	assertProfessionalRepositoryExpectations(
+		t,
+		mock,
+	)
+}
+
+func TestGetProfessionalServiceForBookingSuccess(t *testing.T) {
+	mock := setupProfessionalRepositoryMock(t)
+
+	mock.ExpectQuery(
+		`(?s)SELECT active.*FROM professionals.*id = \$1.*client_id = \$2`,
+	).
+		WithArgs(
+			5,
+			9,
+		).
+		WillReturnRows(
+			sqlmock.NewRows(
+				[]string{"active"},
+			).AddRow(true),
+		)
+
+	mock.ExpectQuery(
+		`(?s)SELECT.*s.id,.*s.name,.*s.duration,.*s.price.*FROM professional_services ps.*INNER JOIN services s.*ps.client_id = \$1.*ps.professional_id = \$2.*LOWER\(BTRIM\(s.name\)\).*LOWER\(BTRIM\(\$3\)\)`,
+	).
+		WithArgs(
+			9,
+			5,
+			"Corte",
+		).
+		WillReturnRows(
+			sqlmock.NewRows([]string{
+				"id",
+				"name",
+				"duration",
+				"price",
+			}).AddRow(
+				23,
+				"Corte",
+				60,
+				75.00,
+			),
+		)
+
+	service, err := GetProfessionalServiceForBooking(
+		9,
+		5,
+		"  Corte  ",
+	)
+
+	if err != nil {
+		t.Fatalf(
+			"esperava sucesso, recebeu erro: %v",
+			err,
+		)
+	}
+
+	if service.ID != 23 {
+		t.Errorf(
+			"esperava service ID 23, recebeu %d",
+			service.ID,
+		)
+	}
+
+	if service.Name != "Corte" {
+		t.Errorf(
+			"esperava serviço Corte, recebeu %s",
+			service.Name,
+		)
+	}
+
+	if service.Duration != 60 {
+		t.Errorf(
+			"esperava duração 60, recebeu %d",
+			service.Duration,
+		)
+	}
+
+	if service.Price != 75.00 {
+		t.Errorf(
+			"esperava preço 75.00, recebeu %.2f",
+			service.Price,
+		)
+	}
+
+	assertProfessionalRepositoryExpectations(
+		t,
+		mock,
+	)
+}
+
+func TestGetProfessionalServiceForBookingProfessionalNotFound(t *testing.T) {
+	mock := setupProfessionalRepositoryMock(t)
+
+	mock.ExpectQuery(
+		`(?s)SELECT active.*FROM professionals.*id = \$1.*client_id = \$2`,
+	).
+		WithArgs(
+			5,
+			9,
+		).
+		WillReturnError(sql.ErrNoRows)
+
+	service, err := GetProfessionalServiceForBooking(
+		9,
+		5,
+		"Corte",
+	)
+
+	if !errors.Is(err, ErrProfessionalNotFound) {
+		t.Fatalf(
+			"esperava ErrProfessionalNotFound, recebeu %v",
+			err,
+		)
+	}
+
+	if service.ID != 0 {
+		t.Fatalf(
+			"esperava serviço vazio, recebeu ID %d",
+			service.ID,
+		)
+	}
+
+	assertProfessionalRepositoryExpectations(
+		t,
+		mock,
+	)
+}
+
+func TestGetProfessionalServiceForBookingInactiveProfessional(t *testing.T) {
+	mock := setupProfessionalRepositoryMock(t)
+
+	mock.ExpectQuery(
+		`(?s)SELECT active.*FROM professionals.*id = \$1.*client_id = \$2`,
+	).
+		WithArgs(
+			5,
+			9,
+		).
+		WillReturnRows(
+			sqlmock.NewRows(
+				[]string{"active"},
+			).AddRow(false),
+		)
+
+	service, err := GetProfessionalServiceForBooking(
+		9,
+		5,
+		"Corte",
+	)
+
+	if !errors.Is(err, ErrProfessionalInactive) {
+		t.Fatalf(
+			"esperava ErrProfessionalInactive, recebeu %v",
+			err,
+		)
+	}
+
+	if service.ID != 0 {
+		t.Fatalf(
+			"esperava serviço vazio, recebeu ID %d",
+			service.ID,
+		)
+	}
+
+	assertProfessionalRepositoryExpectations(
+		t,
+		mock,
+	)
+}
+
+func TestGetProfessionalServiceForBookingServiceUnavailable(t *testing.T) {
+	mock := setupProfessionalRepositoryMock(t)
+
+	mock.ExpectQuery(
+		`(?s)SELECT active.*FROM professionals.*id = \$1.*client_id = \$2`,
+	).
+		WithArgs(
+			5,
+			9,
+		).
+		WillReturnRows(
+			sqlmock.NewRows(
+				[]string{"active"},
+			).AddRow(true),
+		)
+
+	mock.ExpectQuery(
+		`(?s)SELECT.*s.id,.*s.name,.*s.duration,.*s.price.*FROM professional_services ps.*INNER JOIN services s.*ps.client_id = \$1.*ps.professional_id = \$2.*LOWER\(BTRIM\(s.name\)\).*LOWER\(BTRIM\(\$3\)\)`,
+	).
+		WithArgs(
+			9,
+			5,
+			"Barba",
+		).
+		WillReturnError(sql.ErrNoRows)
+
+	service, err := GetProfessionalServiceForBooking(
+		9,
+		5,
+		"Barba",
+	)
+
+	if !errors.Is(
+		err,
+		ErrProfessionalServiceUnavailable,
+	) {
+		t.Fatalf(
+			"esperava ErrProfessionalServiceUnavailable, recebeu %v",
+			err,
+		)
+	}
+
+	if service.ID != 0 {
+		t.Fatalf(
+			"esperava serviço vazio, recebeu ID %d",
+			service.ID,
 		)
 	}
 
